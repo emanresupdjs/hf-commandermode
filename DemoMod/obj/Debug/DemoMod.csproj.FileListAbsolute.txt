@@ -1,0 +1,15 @@
+C:\Users\papinnon\source\repos\DemoMod\DemoMod\bin\Debug\DemoMod.dll
+C:\Users\papinnon\source\repos\DemoMod\DemoMod\bin\Debug\DemoMod.pdb
+C:\Users\papinnon\source\repos\DemoMod\DemoMod\bin\Debug\BepInEx.dll
+C:\Users\papinnon\source\repos\DemoMod\DemoMod\bin\Debug\UnityEngine.CoreModule.dll
+C:\Users\papinnon\source\repos\DemoMod\DemoMod\bin\Debug\UnityEngine.dll
+C:\Users\papinnon\source\repos\DemoMod\DemoMod\obj\Debug\DemoMod.csproj.CoreCompileInputs.cache
+C:\Users\papinnon\source\repos\DemoMod\DemoMod\obj\Debug\DemoMod.csproj.CopyComplete
+C:\Users\papinnon\source\repos\DemoMod\DemoMod\obj\Debug\DemoMod.dll
+C:\Users\papinnon\source\repos\DemoMod\DemoMod\obj\Debug\DemoMod.pdb
+C:\Users\papinnon\source\repos\DemoMod\DemoMod\bin\Debug\HFserver.dll
+C:\Users\papinnon\source\repos\DemoMod\DemoMod\bin\Debug\uLink.dll
+C:\Users\papinnon\source\repos\DemoMod\DemoMod\bin\Debug\0Harmony.dll
+C:\Users\papinnon\source\repos\DemoMod\DemoMod\obj\Debug\DemoMod.csproj.AssemblyReference.cache
+C:\Users\papinnon\source\repos\DemoMod\DemoMod\bin\Debug\UnityEngine.PhysicsModule.dll
+C:\Users\papinnon\source\repos\DemoMod\DemoMod\bin\Debug\Assembly-CSharp-firstpass.dll
