@@ -66,3 +66,5 @@ DemoMod.cs is the entrypoint where all the hooks is registered.
 Basicly I hooked all the method associated with carbonPlayers, you can checkout all the hooked methods with dnSpy to understand the game logic.  
 EnhancedBots.cs is the main implementation.  
 EnhancedRc.cs handle some custom rc commands and modify function of chat box.   
+  
+This is the first time i write c# code/unity game modification, the code might be hard to read, im sorry about that.  
