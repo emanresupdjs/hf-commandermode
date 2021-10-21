@@ -66,12 +66,14 @@ namespace DemoMod
                 this.lines[1] = new LinkedList<SlavePlayer>();
                 this.linesTransform[0] = new List<DemoTransform>();
                 this.linesTransform[1] = new List<DemoTransform>();
-                Vector3 ownerPosition = _ownerRoundPlayer.PlayerTransform.position;
+                Vector3 tmp = _ownerRoundPlayer.PlayerTransform.position;
+                Vector3 ownerPosition = new Vector3(tmp.x, tmp.y, tmp.z);
                 Vector3 ownerRight = _ownerRoundPlayer.PlayerTransform.right * 0.62f;
                 for (int idx =0; idx< _oneRow; ++idx)
                 {
                     Vector3 targetPosition = ownerPosition + (ownerRight *(idx+1));
-                    Vector3 targetForward = _ownerRoundPlayer.PlayerTransform.forward;
+                    Vector3 ownerForwardTmp = _ownerRoundPlayer.PlayerTransform.forward;
+                    Vector3 targetForward = new Vector3(ownerForwardTmp.x, ownerForwardTmp.y, ownerForwardTmp.z);
                     this.linesTransform[0].Add(new DemoTransform() { position = targetPosition, forward = targetForward  });
                 }
 
@@ -82,9 +84,9 @@ namespace DemoMod
                 this.lines[1] = new LinkedList<SlavePlayer>();
                 this.linesTransform[0] = new List<DemoTransform>();
                 this.linesTransform[1] = new List<DemoTransform>();
-                Vector3 ownerPosition = _ownerRoundPlayer.PlayerTransform.position;
+                Vector3 ownerPosition = new Vector3(_ownerRoundPlayer.PlayerTransform.position.x, _ownerRoundPlayer.PlayerTransform.position.y, _ownerRoundPlayer.PlayerTransform.position.z);
                 Vector3 ownerRight = _ownerRoundPlayer.PlayerTransform.right * 0.66f;
-                Vector3 ownerForward = _ownerRoundPlayer.PlayerTransform.forward;
+                Vector3 ownerForward = new Vector3(_ownerRoundPlayer.PlayerTransform.forward.x, _ownerRoundPlayer.PlayerTransform.forward.y, _ownerRoundPlayer.PlayerTransform.forward.z) ;
                 ownerForward.Normalize();
                 for(int idx = 0; idx< _oneRow; ++idx)
                 {
@@ -109,12 +111,12 @@ namespace DemoMod
                 this.lines[1] = new LinkedList<SlavePlayer>();
                 this.linesTransform[0] = new List<DemoTransform>();
                 this.linesTransform[1] = new List<DemoTransform>();
-                Vector3 ownerPosition = this.ownerRoundPlayer.PlayerTransform.position;
+                Vector3 ownerPosition = new Vector3(this.ownerRoundPlayer.PlayerTransform.position.x, this.ownerRoundPlayer.PlayerTransform.position.y, this.ownerRoundPlayer.PlayerTransform.position.z);
                 Vector3 ownerRight = this.ownerRoundPlayer.PlayerTransform.right * 0.62f;
                 for (int idx = 0; idx < _oneRow; ++idx)
                 {
                     Vector3 targetPosition = ownerPosition + (ownerRight * (idx + 1));
-                    Vector3 targetForward = this.ownerRoundPlayer.PlayerTransform.forward;
+                    Vector3 targetForward = new Vector3(this.ownerRoundPlayer.PlayerTransform.forward.x, this.ownerRoundPlayer.PlayerTransform.forward.y, this.ownerRoundPlayer.PlayerTransform.forward.z);
                     this.linesTransform[0].Add(new DemoTransform() { position = targetPosition, forward = targetForward });
                 }
 
@@ -125,9 +127,9 @@ namespace DemoMod
                 this.lines[1] = new LinkedList<SlavePlayer>();
                 this.linesTransform[0] = new List<DemoTransform>();
                 this.linesTransform[1] = new List<DemoTransform>();
-                Vector3 ownerPosition = this.ownerRoundPlayer.PlayerTransform.position;
+                Vector3 ownerPosition = new Vector3(this.ownerRoundPlayer.PlayerTransform.position.x, this.ownerRoundPlayer.PlayerTransform.position.y, this.ownerRoundPlayer.PlayerTransform.position.z);
                 Vector3 ownerRight = this.ownerRoundPlayer.PlayerTransform.right * 0.66f;
-                Vector3 ownerForward = this.ownerRoundPlayer.PlayerTransform.forward;
+                Vector3 ownerForward = new Vector3(this.ownerRoundPlayer.PlayerTransform.forward.x, this.ownerRoundPlayer.PlayerTransform.forward.y, this.ownerRoundPlayer.PlayerTransform.forward.z);
                 ownerForward.Normalize();
                 for (int idx = 0; idx < _oneRow; ++idx)
                 {
@@ -285,346 +287,363 @@ namespace DemoMod
 
         public static void scpm_FixedUpdate_post() //对于所有Bots
         {
-            if(serverRoundPlayerManager == null)
+            try
             {
-                initComponent();
-            }
-            
 
-            foreach( var pair in slaveOwnerDictionary) // 死亡检测 新版
-            {
-                int ownerId = pair.Key;
-                LinkedList<SlavePlayer> slaves = pair.Value;
-                List<SlavePlayer> temp = new List<SlavePlayer>(slaves);
-                int idx = 0;
-                foreach(SlavePlayer slave in temp)
+                if (serverRoundPlayerManager == null)
                 {
-                    ServerRoundPlayer serverRoundPlayer = serverRoundPlayerManager.ResolveServerRoundPlayer(slave.playerId);
-                    if (serverRoundPlayer == null) continue;
-                    slave.isAlive = serverRoundPlayer.PlayerBase.SpawnedAndAlive;
-                    if (!slave.isAlive)
+                    initComponent();
+                }
+
+
+                foreach (var pair in slaveOwnerDictionary) // 死亡检测 新版
+                {
+                    int ownerId = pair.Key;
+                    LinkedList<SlavePlayer> slaves = pair.Value;
+                    List<SlavePlayer> temp = new List<SlavePlayer>(slaves);
+                    int idx = 0;
+                    foreach (SlavePlayer slave in temp)
                     {
-                        slaves.Remove(slave);
-                        slaves.AddLast(slave);
+                        ServerRoundPlayer serverRoundPlayer = serverRoundPlayerManager.ResolveServerRoundPlayer(slave.playerId);
+                        if (serverRoundPlayer == null) continue;
+                        slave.isAlive = serverRoundPlayer.PlayerBase.SpawnedAndAlive;
+                        if (!slave.isAlive)
+                        {
+                            slaves.Remove(slave);
+                            slaves.AddLast(slave);
+                        }
+                    }
+                    foreach (SlavePlayer s in slaves) //更新index
+                    {
+                        s.index = idx;
+                        idx++;
                     }
                 }
-                foreach(SlavePlayer s in slaves) //更新index
-                {
-                    s.index = idx;
-                    idx++;
-                }
-            }
-
-            //形成线列
-            foreach (var pair in slaveOwnerInfantryLine)
-            {
-                int ownerId = pair.Key;
-                DemoInfantryLine line = pair.Value;
-                LinkedList<SlavePlayer>[] lineInfantry = line.lines;
-                if (!slaveOwnerDictionary.ContainsKey(ownerId)) { break; };
-                RoundPlayer ownerRoundPlayer = serverRoundPlayerManager.ResolveRoundPlayer(ownerId);
-                bool hasDeath0 = false;
-                bool hasDeath1 = false;
-                //List<SlavePlayer> temp = slaveOwnerDictionary[ownerId];
 
                 //形成线列
-                try
+                foreach (var pair in slaveOwnerInfantryLine)
                 {
-                    List<DemoTransform> l0_transforms = line.linesTransform[0];
-                    List<DemoTransform> l1_transforms = line.linesTransform[1];
+                    int ownerId = pair.Key;
+                    DemoInfantryLine line = pair.Value;
+                    LinkedList<SlavePlayer>[] lineInfantry = line.lines;
+                    if (!slaveOwnerDictionary.ContainsKey(ownerId)) { break; };
+                    RoundPlayer ownerRoundPlayer = serverRoundPlayerManager.ResolveRoundPlayer(ownerId);
+                    bool hasDeath0 = false;
+                    bool hasDeath1 = false;
+                    //List<SlavePlayer> temp = slaveOwnerDictionary[ownerId];
 
-                    //在线列上检查死亡Bot
-                    List<SlavePlayer> old = new List<SlavePlayer>(lineInfantry[0]);
-                    foreach(SlavePlayer slave in old)//检测bot死亡
+                    //形成线列
+                    try
                     {
-                        if (!slave.isAlive)
-                        {
-                            lineInfantry[0].Remove(slave);
-                            slavePlayerTargetTransforms[slave.playerId].Clear();
-                            hasDeath0 = true;
-                        }
-                    }
-                    old = new List<SlavePlayer>(lineInfantry[1]);
-                    foreach (SlavePlayer slave in old)//检测bot死亡
-                    {
-                        if (!slave.isAlive)
-                        {
-                            lineInfantry[1].Remove(slave);
-                            slavePlayerTargetTransforms[slave.playerId].Clear();
-                            hasDeath1 = true;
-                        }
-                    }
+                        List<DemoTransform> l0_transforms = line.linesTransform[0];
+                        List<DemoTransform> l1_transforms = line.linesTransform[1];
 
-                    if (line.doUpdate) //更新Transform
-                    {
-                        line.updateTransform();
-                    }
-                    List<SlavePlayer> slaves = new List<SlavePlayer>(); // 存活的slave
-                    foreach (SlavePlayer slave in slaveOwnerDictionary[ownerId])
-                    {
-                        if (slave.isAlive)
+                        //在线列上检查死亡Bot
+                        List<SlavePlayer> old = new List<SlavePlayer>(lineInfantry[0]);
+                        foreach (SlavePlayer slave in old)//检测bot死亡
                         {
-                            slaves.Add(slave);
-                        }
-                    }
-                   
-                    //初始化
-                    if (!line.isDoubleRow)
-                    {
-                        if (lineInfantry[0].Count == 0)//初始化
-                        {
-                            for (int i = 0; i < slaves.Count; ++i)
+                            if (!slave.isAlive)
                             {
-                                var slave = slaves[i];
-                                slave.follow = false;
-                                if (slavePlayerTargetTransforms.ContainsKey(slave.playerId))
-                                {
-                                    slavePlayerTargetTransforms[slave.playerId].Clear();
-                                }
-                                walkTo(slave.playerId, l0_transforms[i]);
-                                lineInfantry[0].AddLast(slave);
+                                lineInfantry[0].Remove(slave);
+                                slavePlayerTargetTransforms[slave.playerId].Clear();
+                                hasDeath0 = true;
                             }
                         }
-                    }
-                    else // 双排
-                    {
-                        if (lineInfantry[0].Count == 0 && lineInfantry[1].Count == 0)//初始化
+                        old = new List<SlavePlayer>(lineInfantry[1]);
+                        foreach (SlavePlayer slave in old)//检测bot死亡
                         {
-                            for (int i = 0; i < slaves.Count; ++i)
+                            if (!slave.isAlive)
                             {
-                                SlavePlayer slave = slaves[i];
-                                slave.follow = false;
-                                if (slavePlayerTargetTransforms.ContainsKey(slave.playerId))
+                                lineInfantry[1].Remove(slave);
+                                slavePlayerTargetTransforms[slave.playerId].Clear();
+                                hasDeath1 = true;
+                            }
+                        }
+
+                        if (line.doUpdate) //更新Transform
+                        {
+                            line.updateTransform();
+                        }
+                        List<SlavePlayer> slaves = new List<SlavePlayer>(); // 存活的slave
+                        foreach (SlavePlayer slave in slaveOwnerDictionary[ownerId])
+                        {
+                            if (slave.isAlive)
+                            {
+                                slaves.Add(slave);
+                            }
+                        }
+
+                        //初始化
+                        if (!line.isDoubleRow)
+                        {
+                            if (lineInfantry[0].Count == 0)//初始化
+                            {
+                                for (int i = 0; i < slaves.Count; ++i)
                                 {
-                                    slavePlayerTargetTransforms[slave.playerId].Clear();
-                                }
-                                int num = i < line.oneRow ? 0 : 1;
-                                if(num == 0)
-                                {
-                                    if (line.doUpdate)
+                                    var slave = slaves[i];
+                                    slave.follow = false;
+                                    if (slavePlayerTargetTransforms.ContainsKey(slave.playerId))
                                     {
-                                        walkTo(slave.playerId, l0_transforms[i]);
+                                        slavePlayerTargetTransforms[slave.playerId].Clear();
+                                    }
+                                    walkTo(slave.playerId, l0_transforms[i]);
+                                    lineInfantry[0].AddLast(slave);
+                                }
+                            }
+                        }
+                        else // 双排
+                        {
+                            if (lineInfantry[0].Count == 0 && lineInfantry[1].Count == 0)//初始化
+                            {
+                                for (int i = 0; i < slaves.Count; ++i)
+                                {
+                                    SlavePlayer slave = slaves[i];
+                                    slave.follow = false;
+                                    if (slavePlayerTargetTransforms.ContainsKey(slave.playerId))
+                                    {
+                                        slavePlayerTargetTransforms[slave.playerId].Clear();
+                                    }
+                                    int num = i < line.oneRow ? 0 : 1;
+                                    if (num == 0)
+                                    {
+                                        if (line.doUpdate)
+                                        {
+                                            walkTo(slave.playerId, l0_transforms[i]);
+                                        }
+                                        else
+                                        {
+                                            serverCarbonPlayersManager.StartCoroutine(waitWalkTo(4, slave.playerId, l0_transforms[i]));
+                                        }
                                     }
                                     else
                                     {
-                                        serverCarbonPlayersManager.StartCoroutine(waitWalkTo(4, slave.playerId, l0_transforms[i]));
+                                        var rp = serverRoundPlayerManager.ResolveRoundPlayer(slave.playerId);
+                                        if (line.doUpdate)
+                                        {
+                                            walkTo(slave.playerId, l1_transforms[i - line.oneRow]);
+                                        }
+                                        else
+                                        {
+                                            serverCarbonPlayersManager.StartCoroutine(waitWalkTo((i - line.oneRow) * 0.6f, slave.playerId, new DemoTransform() { position = rp.PlayerTransform.position + rp.PlayerTransform.forward * 0.8f, forward = rp.PlayerTransform.right * -1f, checkDistanceBlocking = false }));
+                                            serverCarbonPlayersManager.StartCoroutine(waitWalkTo(0.9f * (i - line.oneRow) + 1f, slave.playerId, l1_transforms[i - line.oneRow]));
+                                            serverCarbonPlayersManager.StartCoroutine(waitAction(slaves.Count / 2 + 1f, ownerId, PlayerActions.StartCrouching.ToString(), slaveId: slave.playerId));
+                                        }
                                     }
+                                    lineInfantry[num].AddLast(slave);
                                 }
-                                else
-                                {
-                                    var rp = serverRoundPlayerManager.ResolveRoundPlayer(slave.playerId);
-                                    if (line.doUpdate)
-                                    {
-                                        walkTo(slave.playerId, l1_transforms[i - line.oneRow]);
-                                    }
-                                    else
-                                    {
-                                        serverCarbonPlayersManager.StartCoroutine(waitWalkTo((i - line.oneRow) * 0.6f, slave.playerId, new DemoTransform() { position = rp.PlayerTransform.position + rp.PlayerTransform.forward * 0.8f, forward = rp.PlayerTransform.right * -1f, checkDistanceBlocking = false }));
-                                        serverCarbonPlayersManager.StartCoroutine(waitWalkTo(0.9f * (i - line.oneRow) + 1f, slave.playerId, l1_transforms[i - line.oneRow]));
-                                        serverCarbonPlayersManager.StartCoroutine(waitAction(slaves.Count/2 +1f,ownerId, PlayerActions.StartCrouching.ToString(), slaveId:  slave.playerId));
-                                    }
-                                }
-                                lineInfantry[num].AddLast(slave);
                             }
                         }
+
+                        //补齐空位
+                        List<SlavePlayer> newListLineInfantry = new List<SlavePlayer>(lineInfantry[0]); //第一排
+                        for (int i = 0; i < newListLineInfantry.Count && hasDeath0; ++i)
+                        {
+                            var slave = newListLineInfantry[i];
+                            slave.follow = false;
+                            if (slavePlayerTargetTransforms.ContainsKey(slave.playerId))
+                            {
+                                slavePlayerTargetTransforms[slave.playerId].Clear();
+                            }
+                            var tempTransform = new DemoTransform() { position = l0_transforms[i].position, forward = l0_transforms[i].forward, checkDistanceBlocking = false };
+                            serverCarbonPlayersManager.StartCoroutine(waitWalkTo((0.7f * i) + 0.5f, slave.playerId, tempTransform));
+                        }
+                        newListLineInfantry = new List<SlavePlayer>(lineInfantry[1]); //第二排
+                        for (int i = 0; i < newListLineInfantry.Count && hasDeath1; ++i)
+                        {
+                            var slave = newListLineInfantry[i];
+                            slave.follow = false;
+                            if (slavePlayerTargetTransforms.ContainsKey(slave.playerId))
+                            {
+                                slavePlayerTargetTransforms[slave.playerId].Clear();
+                            }
+                            var tempTransform = new DemoTransform() { position = l1_transforms[i].position, forward = l1_transforms[i].forward, checkDistanceBlocking = false };
+                            serverCarbonPlayersManager.StartCoroutine(waitWalkTo((0.7f * i) + 0.5f, slave.playerId, tempTransform));
+                        }
+                        hasDeath0 = false;
+                        hasDeath1 = false;
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.Log("demo: Exception at FixedUpdate_post: " + ex);
                     }
 
-                    //补齐空位
-                    List<SlavePlayer> newListLineInfantry = new List<SlavePlayer>(lineInfantry[0]); //第一排
-                    for(int i = 0; i< newListLineInfantry.Count && hasDeath0; ++i)
-                    {
-                        var slave = newListLineInfantry[i];
-                        slave.follow = false;
-                        if (slavePlayerTargetTransforms.ContainsKey(slave.playerId))
-                        {
-                            slavePlayerTargetTransforms[slave.playerId].Clear();
-                        }
-                        var tempTransform = new DemoTransform() { position = l0_transforms[i].position, forward = l0_transforms[i].forward, checkDistanceBlocking = false };
-                        serverCarbonPlayersManager.StartCoroutine(waitWalkTo((0.7f*i) +0.5f, slave.playerId, tempTransform));
-                    }
-                    newListLineInfantry = new List<SlavePlayer>(lineInfantry[1]); //第二排
-                    for (int i = 0; i < newListLineInfantry.Count && hasDeath1; ++i)
-                    {
-                        var slave = newListLineInfantry[i];
-                        slave.follow = false;
-                        if (slavePlayerTargetTransforms.ContainsKey(slave.playerId))
-                        {
-                            slavePlayerTargetTransforms[slave.playerId].Clear();
-                        }
-                        var tempTransform = new DemoTransform() { position = l1_transforms[i].position, forward = l1_transforms[i].forward, checkDistanceBlocking = false};
-                        serverCarbonPlayersManager.StartCoroutine(waitWalkTo((0.7f * i) + 0.5f, slave.playerId, tempTransform));
-                    }
-                    hasDeath0 = false;
-                    hasDeath1 = false;
-                }catch(Exception ex)
-                {
-                    Debug.Log("demo: Exception at FixedUpdate_post: " + ex);
                 }
-
             }
-
+            catch (Exception  ex)
+            {
+                Debug.Log("demo exception in scpm_FixedUpdate_post: " + ex.ToString());
+            }
+           
         }
 
         public static bool scpm_UpdateCarbonPlayerInput_pre(ServerCarbonPlayersManager __instance, CarbonPlayerRepresentation carbonPlayer, ref ServerRoundPlayer player, ref PlayerActions playerAction, MeleeStrikeType meleeStrike, MeleeStrikeManager ___meleeStrikeManager)
         {
             //普通bot 无视
             //判断进入原版函数
-            if ((playerAction != PlayerActions.None && (playerAction != PlayerActions.FireFirearm ))) 
-            { return true; }
-            int slaveId = carbonPlayer.playerID;
-            if (!slavePlayerDictionary.ContainsKey(slaveId))
+            try
             {
-                return true;
-            }
-            //更新bot朝向
-            SlavePlayer slave = slavePlayerDictionary[slaveId];
-            player.PlayerTransform.forward = slave.currentAimForward;
-            //更新bot 跟随
-            if (slave.follow)
-            {
+                if ((playerAction != PlayerActions.None && (playerAction != PlayerActions.FireFirearm)))
+                { return true; }
+                int slaveId = carbonPlayer.playerID;
+                if (!slavePlayerDictionary.ContainsKey(slaveId))
+                {
+                    return true;
+                }
+                //更新bot朝向
+                SlavePlayer slave = slavePlayerDictionary[slaveId];
+                player.PlayerTransform.forward = slave.currentAimForward;
+                //更新bot 跟随
+                if (slave.follow)
+                {
+                    if (slavePlayerTargetTransforms.ContainsKey(slaveId))
+                    {
+                        slavePlayerTargetTransforms[slaveId].Clear();
+                    }
+                    RoundPlayer ownerRoundPlayer = serverRoundPlayerManager.ResolveRoundPlayer(slave.ownerId);
+                    Vector3 ownerPosition = new Vector3(ownerRoundPlayer.PlayerTransform.position.x, ownerRoundPlayer.PlayerTransform.position.y, ownerRoundPlayer.PlayerTransform.position.z);
+                    Vector3 ownerBack = ownerRoundPlayer.PlayerTransform.forward * -1f;
+                    Vector3 targetPosition = ownerPosition + (ownerBack * 0.9f * (slave.index + 1.5f));
+                    Vector3 targetForward = new Vector3(ownerRoundPlayer.PlayerTransform.forward.x, ownerRoundPlayer.PlayerTransform.forward.y, ownerRoundPlayer.PlayerTransform.forward.z);
+                    walkTo(slave.playerId, new DemoTransform() { position = targetPosition, forward = targetForward });
+                }
+
+
+                if (!__instance.updateInput) { return true; }
+
+                Vector2 inputAxis;
+                float y;
+                OwnerPacketToServer ownerPacketToServer = ComponentReferenceManager.genericObjectPools.ownerPacketToServer.Obtain();
+                RoundPlayer carbonPlayerRoundPlayer = serverRoundPlayerManager.ResolveServerRoundPlayer(slaveId);
+                byte spawnInstance = player.PlayerBase.PlayerStartData.SpawnInstance;
+                Queue<DemoTransform> targetQueue;
+                //获取slave移动队列
                 if (slavePlayerTargetTransforms.ContainsKey(slaveId))
                 {
-                    slavePlayerTargetTransforms[slaveId].Clear();
-                }
-                RoundPlayer ownerRoundPlayer = serverRoundPlayerManager.ResolveRoundPlayer(slave.ownerId);
-                Vector3 ownerPosition = ownerRoundPlayer.PlayerTransform.position;
-                Vector3 ownerBack = ownerRoundPlayer.PlayerTransform.forward * -1f;
-                Vector3 targetPosition = ownerPosition + (ownerBack * 0.9f * (slave.index + 1.5f));
-                Vector3 targetForward = ownerRoundPlayer.PlayerTransform.forward;
-                walkTo(slave.playerId, new DemoTransform() { position = targetPosition, forward = targetForward });
-            }
-
-
-            if (!__instance.updateInput) { return true; }
-
-            Vector2 inputAxis;
-            float y;
-            OwnerPacketToServer ownerPacketToServer = ComponentReferenceManager.genericObjectPools.ownerPacketToServer.Obtain();
-            RoundPlayer carbonPlayerRoundPlayer = serverRoundPlayerManager.ResolveServerRoundPlayer(slaveId);
-            byte spawnInstance = player.PlayerBase.PlayerStartData.SpawnInstance;
-            Queue<DemoTransform> targetQueue;
-            //获取slave移动队列
-            if (slavePlayerTargetTransforms.ContainsKey(slaveId))
-            {
-                targetQueue = slavePlayerTargetTransforms[slaveId];
-            }
-            else
-            {
-                return true;
-            }
-            //获取移动
-            DemoTransform target = targetQueue.Count != 0 ? targetQueue.Peek() : null;
-            if (target == null)
-            {
-                return true;
-            }
-            else
-            {
-                float rand2 = UnityEngine.Random.Range(0f, 1f);
-                if (rand2 > 0.7 && target.lastPosition != Vector3.zero)
-                {
-                    //碰撞检测
-                    Vector3 forwardSet = slave.currentAimForward;
-                    Vector3 nowForward = player.PlayerTransform.position - target.lastPosition;
-                    nowForward.Normalize();
-                    forwardSet.Normalize();
-                    nowForward.y = 0;
-                    forwardSet.y = 0;
-                    if (Vector3.Distance(target.lastPosition, player.PlayerTransform.position) < 0.00006 && (target.checkDistanceBlocking ))
-                    {
-                        //Debug.Log("demo: distance moved: " + Vector3.Distance(target.lastPosition, player.PlayerTransform.position));
-                        Vector3 newForward = (carbonPlayerRoundPlayer.PlayerTransform.right) + (-1f * carbonPlayerRoundPlayer.PlayerTransform.forward);
-                        Vector3 f1 = (-1f * carbonPlayerRoundPlayer.PlayerTransform.forward);
-                        f1.Normalize();
-                        Vector3 p1 = (player.PlayerTransform.position + 0.2f*f1);
-                        newForward.Normalize();
-                        slave.currentAimForward = newForward;
-                        DemoTransform temp = targetQueue.Dequeue();
-                        float multiplier = 0.15f;
-                        while (temp.isCollistion)
-                        {
-                            temp = targetQueue.Dequeue();
-                        }
-                        targetQueue.Enqueue(new DemoTransform() { forward = f1, position = p1, isCollistion = true });
-                        targetQueue.Enqueue(new DemoTransform() { forward = newForward, position = newForward * multiplier + player.PlayerTransform.position, isCollistion = true });
-                        targetQueue.Enqueue(temp);
-                    }
-                    else if (nowForward != Vector3.zero && Vector3.Distance(nowForward, forwardSet) > 0.09)
-                    {
-                        //Debug.Log("demo: vector distance: " + Vector3.Distance(nowForward, forwardSet));
-                        DemoTransform temp = targetQueue.Dequeue();
-                        float multiplier = 0.4f;
-                        while (temp.isCollistion)
-                        {
-                            temp = targetQueue.Dequeue();
-                            multiplier += 0.15f;
-                        }
-                        slave.currentAimForward = nowForward;
-                        targetQueue.Enqueue(new DemoTransform() { forward = nowForward, position = nowForward * multiplier + player.PlayerTransform.position, isCollistion = true });
-                        if (!temp.isCollistion) { targetQueue.Enqueue(temp); }
-                    }
-                }
-                target.lastPosition = player.PlayerTransform.position;
-
-                float distance = Vector2.Distance(new Vector2(target.position.x, target.position.z), new Vector2(player.PlayerTransform.position.x, player.PlayerTransform.position.z));
-                //Debug.Log(string.Format("demo: distance: {0} last: {1}", distance, target.lastDistance));
-                if (distance > target.lastDistance)
-                {
-                    //重新计算forward
-                    Vector3 forward = (target.position - player.PlayerTransform.position);
-                    forward.y = 0;
-                    forward.Normalize();
-                    slave.currentAimForward = forward;
-                    //Debug.Log("demo: caculate new forward: " + forward);
-                }
-                target.lastDistance = distance;
-                if (distance > 0.2)
-                {
-                    inputAxis = new Vector2(0, 1);
-                    EnumCollection<PlayerActions> enumCollection = ComponentReferenceManager.genericObjectPools.playerActionsEnumCollection.Obtain();
-                    enumCollection.Add((int)PlayerActions.Run);
-                    ownerPacketToServer.ActionCollection = enumCollection;
-                }
-                else if (distance > 0.065)
-                {
-                    inputAxis = new Vector2(0, 1);
+                    targetQueue = slavePlayerTargetTransforms[slaveId];
                 }
                 else
                 {
-                    targetQueue.Dequeue();
-                    inputAxis = Vector2.zero;
-                    //Debug.Log(string.Format("demo:{3} reach position: {0} forward: {1} isCollision: {2}", target.position, target.forward, target.isCollistion, carbonPlayer.playerID));
-                    if (!target.isCollistion) { slavePlayerTargetTransforms[slaveId].Clear(); }
-                    slave.currentAimForward = target.forward;
+                    return true;
                 }
-            }
+                //获取移动
+                DemoTransform target = targetQueue.Count != 0 ? targetQueue.Peek() : null;
+                if (target == null)
+                {
+                    return true;
+                }
+                else
+                {
+                    float rand2 = UnityEngine.Random.Range(0f, 1f);
+                    if (rand2 > 0.7 && target.lastPosition != Vector3.zero)
+                    {
+                        //碰撞检测
+                        Vector3 forwardSet = new Vector3(slave.currentAimForward.x, slave.currentAimForward.y, slave.currentAimForward.z);
+                        Vector3 nowForward = player.PlayerTransform.position - target.lastPosition;
+                        nowForward.Normalize();
+                        forwardSet.Normalize();
+                        nowForward.y = 0;
+                        forwardSet.y = 0;
+                        if (Vector3.Distance(target.lastPosition, player.PlayerTransform.position) < 0.00006 && (target.checkDistanceBlocking))
+                        {
+                            //Debug.Log("demo: distance moved: " + Vector3.Distance(target.lastPosition, player.PlayerTransform.position));
+                            Vector3 newForward = (carbonPlayerRoundPlayer.PlayerTransform.right) + (-1f * carbonPlayerRoundPlayer.PlayerTransform.forward);
+                            Vector3 f1 = (-1f * carbonPlayerRoundPlayer.PlayerTransform.forward);
+                            f1.Normalize();
+                            Vector3 p1 = (player.PlayerTransform.position + 0.2f * f1);
+                            newForward.Normalize();
+                            slave.currentAimForward = newForward;
+                            DemoTransform temp = targetQueue.Dequeue();
+                            float multiplier = 0.15f;
+                            while (temp.isCollistion)
+                            {
+                                temp = targetQueue.Dequeue();
+                            }
+                            targetQueue.Enqueue(new DemoTransform() { forward = f1, position = p1, isCollistion = true });
+                            targetQueue.Enqueue(new DemoTransform() { forward = newForward, position = newForward * multiplier + player.PlayerTransform.position, isCollistion = true });
+                            targetQueue.Enqueue(temp);
+                        }
+                        else if (nowForward != Vector3.zero && Vector3.Distance(nowForward, forwardSet) > 0.09)
+                        {
+                            //Debug.Log("demo: vector distance: " + Vector3.Distance(nowForward, forwardSet));
+                            DemoTransform temp = targetQueue.Dequeue();
+                            float multiplier = 0.4f;
+                            while (temp.isCollistion)
+                            {
+                                temp = targetQueue.Dequeue();
+                                multiplier += 0.15f;
+                            }
+                            slave.currentAimForward = nowForward;
+                            targetQueue.Enqueue(new DemoTransform() { forward = nowForward, position = nowForward * multiplier + player.PlayerTransform.position, isCollistion = true });
+                            if (!temp.isCollistion) { targetQueue.Enqueue(temp); }
+                        }
+                    }
+                    target.lastPosition = player.PlayerTransform.position;
 
-            y = carbonPlayerRoundPlayer.PlayerObject.transform.rotation.eulerAngles.y;
-            ownerPacketToServer.Instance = new byte?(spawnInstance);
-            ownerPacketToServer.OwnerInputAxis = new Vector2?(inputAxis);
-            ownerPacketToServer.OwnerRotationY = new float?(y);
-            ownerPacketToServer.Swimming = player.PlayerBase.State.isSwimming;
-            if (playerAction == PlayerActions.FireFirearm)
-            {
-                EnumCollection<PlayerActions> enumCollection = ComponentReferenceManager.genericObjectPools.playerActionsEnumCollection.Obtain();
-                enumCollection.Add((int)playerAction);
-                double networkTime = uLinkNetworkConnectionsCollection.networkTime;
-                ownerPacketToServer.CameraForward = new Vector3?(slave.currentAimForward);
-                ownerPacketToServer.CameraPosition = new Vector3?(player.uLinkStrictPlatformerCreator.rewinderHitboxGroup.BodyHitboxes[1].Transform.position);
-                ownerPacketToServer.PacketTimestamp = new double?(networkTime);
-                ownerPacketToServer.ActionCollection = enumCollection;
-            }
-            player.uLinkStrictPlatformerCreator.HandleOwnerPacketToServer(ownerPacketToServer);
+                    float distance = Vector2.Distance(new Vector2(target.position.x, target.position.z), new Vector2(player.PlayerTransform.position.x, player.PlayerTransform.position.z));
+                    //Debug.Log(string.Format("demo: distance: {0} last: {1}", distance, target.lastDistance));
+                    if (distance > target.lastDistance)
+                    {
+                        //重新计算forward
+                        Vector3 forward = (target.position - player.PlayerTransform.position);
+                        forward.y = 0;
+                        forward.Normalize();
+                        slave.currentAimForward = forward;
+                        //Debug.Log("demo: caculate new forward: " + forward);
+                    }
+                    target.lastDistance = distance;
+                    if (distance > 0.2)
+                    {
+                        inputAxis = new Vector2(0, 1);
+                        EnumCollection<PlayerActions> enumCollection = ComponentReferenceManager.genericObjectPools.playerActionsEnumCollection.Obtain();
+                        enumCollection.Add((int)PlayerActions.Run);
+                        ownerPacketToServer.ActionCollection = enumCollection;
+                    }
+                    else if (distance > 0.065)
+                    {
+                        inputAxis = new Vector2(0, 1);
+                    }
+                    else
+                    {
+                        targetQueue.Dequeue();
+                        inputAxis = Vector2.zero;
+                        //Debug.Log(string.Format("demo:{3} reach position: {0} forward: {1} isCollision: {2}", target.position, target.forward, target.isCollistion, carbonPlayer.playerID));
+                        if (!target.isCollistion) { slavePlayerTargetTransforms[slaveId].Clear(); }
+                        slave.currentAimForward = target.forward;
+                    }
+                }
 
-            if ((meleeStrike != MeleeStrikeType.None))
+                y = carbonPlayerRoundPlayer.PlayerObject.transform.rotation.eulerAngles.y;
+                ownerPacketToServer.Instance = new byte?(spawnInstance);
+                ownerPacketToServer.OwnerInputAxis = new Vector2?(inputAxis);
+                ownerPacketToServer.OwnerRotationY = new float?(y);
+                ownerPacketToServer.Swimming = player.PlayerBase.State.isSwimming;
+                if (playerAction == PlayerActions.FireFirearm)
+                {
+                    EnumCollection<PlayerActions> enumCollection = ComponentReferenceManager.genericObjectPools.playerActionsEnumCollection.Obtain();
+                    enumCollection.Add((int)playerAction);
+                    double networkTime = uLinkNetworkConnectionsCollection.networkTime;
+                    ownerPacketToServer.CameraForward = new Vector3?(slave.currentAimForward);
+                    ownerPacketToServer.CameraPosition = new Vector3?(player.uLinkStrictPlatformerCreator.rewinderHitboxGroup.BodyHitboxes[1].Transform.position);
+                    ownerPacketToServer.PacketTimestamp = new double?(networkTime);
+                    ownerPacketToServer.ActionCollection = enumCollection;
+
+                }
+                player.uLinkStrictPlatformerCreator.HandleOwnerPacketToServer(ownerPacketToServer);
+
+                if ((meleeStrike != MeleeStrikeType.None))
+                {
+                    PlayerMeleeStrikePacket playerMeleeStrikePacket = ComponentReferenceManager.genericObjectPools.playerMeleeStrikePacket.Obtain();
+                    playerMeleeStrikePacket.AttackTime = uLinkNetworkConnectionsCollection.networkTime;
+                    playerMeleeStrikePacket.AttackingPlayerID = carbonPlayer.playerID;
+                    playerMeleeStrikePacket.AttackingPlayerMeleeWeaponDamageDealerTypeID = player.WeaponHolder.ActiveWeaponDetails.damageDealerTypeID;
+                    playerMeleeStrikePacket.MeleeStrikeType = meleeStrike;
+                    Debug.Log(string.Format("demo: melee: {0}", meleeStrike.ToString()));
+                    ___meleeStrikeManager.MeleeAttackStrike(playerMeleeStrikePacket);
+                }
+            }catch(Exception ex)
             {
-                PlayerMeleeStrikePacket playerMeleeStrikePacket = ComponentReferenceManager.genericObjectPools.playerMeleeStrikePacket.Obtain();
-                playerMeleeStrikePacket.AttackTime = uLinkNetworkConnectionsCollection.networkTime;
-                playerMeleeStrikePacket.AttackingPlayerID = carbonPlayer.playerID;
-                playerMeleeStrikePacket.AttackingPlayerMeleeWeaponDamageDealerTypeID = player.WeaponHolder.ActiveWeaponDetails.damageDealerTypeID;
-                playerMeleeStrikePacket.MeleeStrikeType = meleeStrike;
-                Debug.Log(string.Format("demo: melee: {0}", meleeStrike.ToString()));
-                ___meleeStrikeManager.MeleeAttackStrike(playerMeleeStrikePacket);
+                Debug.Log("Demo UpdateCarbonPlayerInput exception: " + ex.ToString());
+                return false;
             }
             return false;
 
@@ -642,7 +661,13 @@ namespace DemoMod
 
         public static void rtm_Update_post()
         {
-            updateSlaveYRotation();
+            try
+            {
+                updateSlaveYRotation();
+            }catch(Exception ex)
+            {
+                Debug.Log("demo exception at rtm_Update_post: " + ex.ToString());
+            }
         }
 
         public static void scm_uLink_OnPlayerDisconnected_pre(NetworkPlayer networkPlayer)
@@ -664,14 +689,13 @@ namespace DemoMod
                 if (slaveOwnerDictionary.ContainsKey(playerId))
                 {
                     Vector3 forward = packet.CameraForward == null ? Vector3.zero : (Vector3)packet.CameraForward;
-                    Vector3 position = packet.CameraPosition == null ? Vector3.zero : (Vector3)packet.CameraPosition;
-                    forward.Normalize();
+                    Vector3 position = packet.CameraPosition == null ? Vector3.zero : (Vector3)packet.CameraPosition ;
                     RaycastHit raycastHit;
                     bool hasHits = false;
                     Ray ray = new Ray
                     {
-                        origin = position,
-                        direction = forward
+                        origin = new Vector3(position.x, position.y, position.z),
+                        direction = new Vector3(forward.x, forward.y, forward.z)
                     };
                     //int.Parse("FFFFFFFF", System.Globalization.NumberStyles.HexNumber)&
                     if (Physics.Raycast(ray.origin, ray.direction, out raycastHit, 1000, ___commonGlobalVariables.layers.bulletBlockers | ___commonGlobalVariables.layers.terrain | ___commonGlobalVariables.layers.player |
@@ -692,7 +716,7 @@ namespace DemoMod
                     }
                     foreach (var slave in slaveOwnerDictionary[playerId])
                     {
-                        slave.currentAimForward = forward;
+                        slave.currentAimForward = new Vector3(forward.x, forward.y, forward.z);
                         if (slave.isAimingExact && hasHits)
                         {
                             var roundPlayer = serverRoundPlayerManager.ResolveRoundPlayer(slave.playerId);
@@ -700,7 +724,7 @@ namespace DemoMod
                             {
                                 continue;
                             }
-                            Vector3 slavePosition = roundPlayer.PlayerTransform.position;
+                            Vector3 slavePosition = new Vector3(roundPlayer.PlayerTransform.position.x, roundPlayer.PlayerTransform.position.y, roundPlayer.PlayerTransform.position.z) ;
                             Vector3 cameraP = new Vector3(slavePosition.x, slavePosition.y + 1.3f, slavePosition.z);
                             Vector3 temp = raycastHit.point - cameraP;
                             temp.Normalize();
@@ -1036,7 +1060,7 @@ namespace DemoMod
                 return "error: no roundplayer.";
             }
             UnityEngine.Vector3 right = roundPlayer.PlayerTransform.right * 0.55f;
-            UnityEngine.Vector3 forward = roundPlayer.PlayerTransform.forward;
+            UnityEngine.Vector3 forward = new Vector3(roundPlayer.PlayerTransform.forward.x, roundPlayer.PlayerTransform.forward.y, roundPlayer.PlayerTransform.forward.z);
             UnityEngine.Vector3 position = roundPlayer.PlayerTransform.position + (0.5f * forward);
             float yRotation = roundPlayer.PlayerTransform.eulerAngles.y;
             UnityEngine.Vector3 eulerAngles = new UnityEngine.Vector3(0, yRotation, 0);
@@ -1261,11 +1285,11 @@ namespace DemoMod
                                 slavePlayerTargetTransforms[slave.playerId].Clear();
                             }
                             ownerRoundPlayer = serverRoundPlayerManager.ResolveRoundPlayer(ownerId);
-                            Vector3 ownerPosition = ownerRoundPlayer.PlayerTransform.position;
+                            Vector3 ownerPosition = new Vector3(ownerRoundPlayer.PlayerTransform.position.x, ownerRoundPlayer.PlayerTransform.position.y, ownerRoundPlayer.PlayerTransform.position.z);
                             Vector3 ownerRight = ownerRoundPlayer.PlayerTransform.right * 0.65f;
                             int idx = slave.index;
                             Vector3 targetPosition = ownerPosition + (ownerRight * (idx < (slaves.Count) / 2 ? idx - (slaves.Count / 2) : 1 + idx - (slaves.Count / 2)));
-                            Vector3 targetForward = ownerRoundPlayer.PlayerTransform.forward;
+                            Vector3 targetForward = new Vector3(ownerRoundPlayer.PlayerTransform.forward.x, ownerRoundPlayer.PlayerTransform.forward.y, ownerRoundPlayer.PlayerTransform.forward.z);
 
                             walkTo(slave.playerId, new DemoTransform() { position = targetPosition, forward = targetForward });
                         }
@@ -1319,13 +1343,13 @@ namespace DemoMod
                                 slavePlayerTargetTransforms[slave.playerId].Clear();
                             }
                             var slaveRp = serverRoundPlayerManager.ResolveRoundPlayer(slave.playerId);
-                            Vector3 slavePosition = slaveRp.PlayerTransform.position;
+                            Vector3 slavePosition = new Vector3(slaveRp.PlayerTransform.position.x, slaveRp.PlayerTransform.position.y, slaveRp.PlayerTransform.position.z);
                             var temp = slaveRp.PlayerTransform.forward;
                             Vector3 slaveForward = new Vector3(temp.x , temp.y , temp.z);
                             slaveForward.Normalize();
                             int idx = slave.index;
                             Vector3 targetPosition = slavePosition + 1.2f*slaveForward;
-                            Vector3 targetForward = slaveForward;
+                            Vector3 targetForward = slaveForward ;
 
                             walkTo(slave.playerId, new DemoTransform() { position = targetPosition, forward = targetForward });
                         }
@@ -1390,7 +1414,7 @@ namespace DemoMod
                             playerMeleeStrikePacket.AttackTime = uLinkNetworkConnectionsCollection.networkTime + 0.03;
                             playerMeleeStrikePacket.AttackingPlayerMeleeWeaponDamageDealerTypeID = activeWeaponDetails.GetDamageDealerTypeID(AttackType.MeleeAttack);
                             playerMeleeStrikePacket.MeleeStrikeType = mType;
-                            //EnhancedRC.networkView.RPC<PlayerMeleeStrikePacket>("MeleeAttackStrike", uLinkNetworkConnectionsCollection.connections, playerMeleeStrikePacket);
+                            EnhancedRC.networkView.RPC<PlayerMeleeStrikePacket>("MeleeAttackStrike", uLinkNetworkConnectionsCollection.connections, playerMeleeStrikePacket);
                             ComponentReferenceManager.genericObjectPools.playerMeleeStrikePacket.Release(playerMeleeStrikePacket);
                         }
                         return string.Format("demo:meleeStrike {0}", mType);
@@ -1435,8 +1459,8 @@ namespace DemoMod
         public static string setCamera(int ownerId, string groupName, UnityEngine.Vector3 cameraForward)
         {
             ServerRoundPlayer ownerRoundPlayer = serverRoundPlayerManager.ResolveServerRoundPlayer(ownerId);
-            UnityEngine.Vector3 ownerForward = ownerRoundPlayer.PlayerTransform.forward;
-            UnityEngine.Vector3 ownerPosition = ownerRoundPlayer.PlayerTransform.position;
+            UnityEngine.Vector3 ownerForward = new Vector3(ownerRoundPlayer.PlayerTransform.forward.x, ownerRoundPlayer.PlayerTransform.forward.y, ownerRoundPlayer.PlayerTransform.forward.z);
+            UnityEngine.Vector3 ownerPosition = new Vector3(ownerRoundPlayer.PlayerTransform.position.x, ownerRoundPlayer.PlayerTransform.position.y, ownerRoundPlayer.PlayerTransform.position.z);
             return string.Format("get user camera status pos: {0}  forward: {1}", ownerPosition, ownerForward);
         }
     

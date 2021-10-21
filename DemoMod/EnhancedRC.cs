@@ -15,7 +15,7 @@ namespace DemoMod
         public int slaveOwned = -1;
         public bool isServerLogon = false;
         public bool botsAdded = false;
-        public static int MAX_SLAVE = 20;
+        public static int MAX_SLAVE = 15;
     }
     class EnhancedRC //ServerRemoteConsoleAccessManager
     {
@@ -330,17 +330,11 @@ namespace DemoMod
                     {
                         string action;
                         string group;
-                        if (arguments.Length < 2) { return "usage: do <group> <PlayerActions> [<additional>]"; }
-                        else if(arguments.Length == 2) 
-                        { 
-                            action = arguments[1].Trim();
-                            group = "all";
-                        }
-                        else
-                        {
-                            group = arguments[1].Trim();
-                            action = arguments[2].Trim();
-                        }
+                        if (arguments.Length < 3) { return "usage: do <group> <PlayerActions> [<additional>]"; }
+
+                        group = arguments[1].Trim();
+                        action = arguments[2].Trim();
+
                         if(arguments.Length == 4)
                         {
                             return EnhancedBots.action(sender.id, group, action, arguments[3].Trim());
