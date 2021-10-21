@@ -12,9 +12,26 @@ Known bugs/problems:
 ----------- installation guide(Windows/Linux)
 
 1. Install Bepinex framework  
-unzip Bepindexxxx.zip to game *root folder* (eg. "C:\Program Files\Steam\steamapps\common\Holdfast Nations At War\")  
+Windows:  
+unzip Bepinex_x64_xxx.zip to game *root folder* (eg. "D:\Program Files\Steam\steamapps\common\Holdfast Nations At War\") 
+Linux:  
+unzip Bepinex_unix_xxx.zip to game *root folder* (eg. "/home/steam/holdfastnaw-dedicated/")  
 2. Change directory to game *root folder*  
-execute Holdfast Naw.exe or run the game(on linux)  
+Windows:  
+Run Holdfast Naw.exe  
+Linux:  
+Find entry.sh and run_bepinex.sh on github, copy and replace the original file("/home/your_user_name/entry.sh", /home/your_user_name/holdfastnaw-dedicated/run_bepinex.sh).  
+My server is docker, so directory might be  different.  
+If your server is docker, you need to login to container as root and  install file utils before run the game:  
+```
+$ docker exec -u root -it container_name bash   
+$ apt install file  
+$ exit  
+$ docker exec  -it container_name bash  
+$ bash /home/your_user_name/holdfastnaw-dedicated/run_bepinex.sh  
+```
+Ctrl+c to stop the game   
+
 3. Create Mod folder  
 create directory "*root folder*/BepInEx/plugins/DemoMod/"  
 4. Copy the mod file  
@@ -39,10 +56,11 @@ In F1 Admin console
 Send "rc dm add 40 British ArmyLineInfantry [haha] 1" to add 40 British LineInfantry with nameprefix  "[haha]" and with uniform indexed with 1  
 admin can spawn any number of bots  
 
-**Enable/Disable the mod**  
+**Admin controls**  
 In F1 Admin console  
 Send "rc dm enable" to enable the mod  
 Send "rc dm disable" to disable the mod  
+Send "rc dm set MAX_SLAVE 10" to set the upper limit of bots a player can spawn  
 Admin can spawn bots even when the mod is disabled  
 mod is conflict with original carbonPlayers interface!  
 
