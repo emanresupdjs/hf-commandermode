@@ -56,10 +56,11 @@ In F1 Admin console
 Send "rc dm add 40 British ArmyLineInfantry [haha] 1" to add 40 British LineInfantry with nameprefix  "[haha]" and with uniform indexed with 1  
 admin can spawn any number of bots  
 
-**Enable/Disable the mod**  
+**Admin controls**  
 In F1 Admin console  
 Send "rc dm enable" to enable the mod  
 Send "rc dm disable" to disable the mod  
+Send "rc dm set MAX_SLAVE 10" to set the upper limit of bots a player can spawn  
 Admin can spawn bots even when the mod is disabled  
 mod is conflict with original carbonPlayers interface!  
 
