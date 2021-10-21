@@ -46,7 +46,7 @@ namespace DemoMod
     public class DemoInfantryLine
     {
         public RoundPlayer ownerRoundPlayer;
-        public LinkedList<SlavePlayer>[] lines;//每个位置存放当前位置的SlavePlayer
+        public LinkedList<SlavePlayer>[] lines;                    //每个位置存放当前位置的SlavePlayer(Store slavePlayer in line)
         public List<DemoTransform>[] linesTransform;
         public bool isDoubleRow = false;
         public int oneRow = 0;
@@ -121,7 +121,7 @@ namespace DemoMod
                 }
 
             }
-            else //双排线列
+            else //双排线列(Double rank)
             {
                 this.lines[0] = new LinkedList<SlavePlayer>();
                 this.lines[1] = new LinkedList<SlavePlayer>();
@@ -245,7 +245,7 @@ namespace DemoMod
         }
         public static void scpm_InitiateCarbonPlayer_post(ref uLink.NetworkPlayer __result)
         {
-            //执行Bot 初始化
+            //执行Bot 初始化(init slave object)
             if (slaveOwnerDictionary.ContainsKey(currentRequestOwner)) 
             {
                 slaveOwnerDictionary[currentRequestOwner].Last().playerId = __result.id;
@@ -285,7 +285,7 @@ namespace DemoMod
             }
         }
 
-        public static void scpm_FixedUpdate_post() //对于所有Bots
+        public static void scpm_FixedUpdate_post() 
         {
             try
             {
@@ -296,7 +296,7 @@ namespace DemoMod
                 }
 
 
-                foreach (var pair in slaveOwnerDictionary) // 死亡检测 新版
+                foreach (var pair in slaveOwnerDictionary) // 死亡检测 新版 (death detection new)
                 {
                     int ownerId = pair.Key;
                     LinkedList<SlavePlayer> slaves = pair.Value;
@@ -313,14 +313,14 @@ namespace DemoMod
                             slaves.AddLast(slave);
                         }
                     }
-                    foreach (SlavePlayer s in slaves) //更新index
+                    foreach (SlavePlayer s in slaves) //更新index (update index)
                     {
                         s.index = idx;
                         idx++;
                     }
                 }
 
-                //形成线列
+                //形成线列 (make a line)
                 foreach (var pair in slaveOwnerInfantryLine)
                 {
                     int ownerId = pair.Key;
@@ -338,7 +338,7 @@ namespace DemoMod
                         List<DemoTransform> l0_transforms = line.linesTransform[0];
                         List<DemoTransform> l1_transforms = line.linesTransform[1];
 
-                        //在线列上检查死亡Bot
+                        //在线列上检查死亡Bot (Detect dead slave on line)
                         List<SlavePlayer> old = new List<SlavePlayer>(lineInfantry[0]);
                         foreach (SlavePlayer slave in old)//检测bot死亡
                         {
@@ -360,11 +360,11 @@ namespace DemoMod
                             }
                         }
 
-                        if (line.doUpdate) //更新Transform
+                        if (line.doUpdate) //更新Transform (Update slave transform)
                         {
                             line.updateTransform();
                         }
-                        List<SlavePlayer> slaves = new List<SlavePlayer>(); // 存活的slave
+                        List<SlavePlayer> slaves = new List<SlavePlayer>(); // 存活的slave (Alive slaves only)
                         foreach (SlavePlayer slave in slaveOwnerDictionary[ownerId])
                         {
                             if (slave.isAlive)
@@ -373,7 +373,7 @@ namespace DemoMod
                             }
                         }
 
-                        //初始化
+                        //初始化 (init line)
                         if (!line.isDoubleRow)
                         {
                             if (lineInfantry[0].Count == 0)//初始化
@@ -391,7 +391,7 @@ namespace DemoMod
                                 }
                             }
                         }
-                        else // 双排
+                        else // 双排 (double rank line init)
                         {
                             if (lineInfantry[0].Count == 0 && lineInfantry[1].Count == 0)//初始化
                             {
@@ -434,7 +434,7 @@ namespace DemoMod
                             }
                         }
 
-                        //补齐空位
+                        //补齐空位 (Fill the dead body position)
                         List<SlavePlayer> newListLineInfantry = new List<SlavePlayer>(lineInfantry[0]); //第一排
                         for (int i = 0; i < newListLineInfantry.Count && hasDeath0; ++i)
                         {
@@ -489,10 +489,10 @@ namespace DemoMod
                 {
                     return true;
                 }
-                //更新bot朝向
+                //更新bot朝向 (update slave forward)
                 SlavePlayer slave = slavePlayerDictionary[slaveId];
                 player.PlayerTransform.forward = slave.currentAimForward;
-                //更新bot 跟随
+                //更新bot 跟随 (update follow status)
                 if (slave.follow)
                 {
                     if (slavePlayerTargetTransforms.ContainsKey(slaveId))
@@ -525,7 +525,7 @@ namespace DemoMod
                 {
                     return true;
                 }
-                //获取移动
+                //获取移动 (update slave movement)
                 DemoTransform target = targetQueue.Count != 0 ? targetQueue.Peek() : null;
                 if (target == null)
                 {
@@ -536,7 +536,7 @@ namespace DemoMod
                     float rand2 = UnityEngine.Random.Range(0f, 1f);
                     if (rand2 > 0.7 && target.lastPosition != Vector3.zero)
                     {
-                        //碰撞检测
+                        //碰撞检测 (collision detection)
                         Vector3 forwardSet = new Vector3(slave.currentAimForward.x, slave.currentAimForward.y, slave.currentAimForward.z);
                         Vector3 nowForward = player.PlayerTransform.position - target.lastPosition;
                         nowForward.Normalize();
@@ -583,7 +583,7 @@ namespace DemoMod
                     //Debug.Log(string.Format("demo: distance: {0} last: {1}", distance, target.lastDistance));
                     if (distance > target.lastDistance)
                     {
-                        //重新计算forward
+                        //重新计算forward (re-calculate slave forward)
                         Vector3 forward = (target.position - player.PlayerTransform.position);
                         forward.y = 0;
                         forward.Normalize();
