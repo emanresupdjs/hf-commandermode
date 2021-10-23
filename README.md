@@ -17,7 +17,7 @@ How to update:
 
 1. Install Bepinex framework  
 Windows:  
-unzip Bepinex_x64_xxx.zip to game *root folder* (eg. "D:\Program Files\Steam\steamapps\common\Holdfast Nations At War\") 
+unzip Bepinex_x64_xxx.zip to game *root folder* (eg. "D:\Program Files\Steam\steamapps\common\Holdfast Nations At War\")  
 Linux:  
 unzip Bepinex_unix_xxx.zip to game *root folder* (eg. "/home/steam/holdfastnaw-dedicated/")  
 2. Change directory to game *root folder*  
