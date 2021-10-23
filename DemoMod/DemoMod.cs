@@ -100,6 +100,10 @@ namespace DemoMod
             var spdm_UpdatePlayerHealth_revivePolicy = AccessTools.Method(typeof(DemoGameMode), "spdm_UpdatePlayerHealth_revivePolicy");
             harmony.Patch(spdm_UpdatePlayerHealth_revivePolicy_o, postfix: new HarmonyMethod(spdm_UpdatePlayerHealth_revivePolicy));
 
+            var sgm_InformPlayerAboutUnableToSpawn_o = AccessTools.Method(typeof(ServerGameManager), "InformPlayerAboutUnableToSpawn");
+            var sgm_InformPlayerAboutUnableToSpawn_post = AccessTools.Method(typeof(EnhancedBots), "sgm_InformPlayerAboutUnableToSpawn_post");
+            harmony.Patch(sgm_InformPlayerAboutUnableToSpawn_o, postfix: new HarmonyMethod(sgm_InformPlayerAboutUnableToSpawn_post));
+
 
             var csnuo_CreateProxyPacket_o = AccessTools.Method(typeof(CharacterServerNetworkUpdateableObject), "CreateProxyPacket");
             var csnuo_CreateProxyPacket_post = AccessTools.Method(typeof(Demomod), "csnuo_CreateProxyPacket_post");
