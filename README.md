@@ -3,11 +3,6 @@ holdfast modification based on Bepinex
 
 **Feel free to change and republish it**  
 
-Known bugs/problems:  
-  Sometimes Accidentally change commander player object's forward vector (or rotation idk) which is fatal.   
-  Form line algorithm is shit.  
-  Commander player have to fire in order to get commander player's aiming forward vector. 
-  
 How to update:  
   Download latest release.  
   Replace the old *root folder*/BepInEx/plugins/DemoMod/DemoMod.dll with the new one.  
