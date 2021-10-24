@@ -33,6 +33,8 @@ namespace DemoMod
         public bool isFiringAtWill = false;
         public bool isReloading = false;
         public bool hasAmmo = true;
+        public bool isCharge = false;
+        public int rand = 0;
         public string group = "all";
     }
    
@@ -182,20 +184,20 @@ namespace DemoMod
                 factionCountry = factionCountry,
                 playerClass = playerClass,
                 currentAimForward = Vector3.zero,
-                index = currentSpawnIndex
-
+                index = currentSpawnIndex,
+                rand = UnityEngine.Random.Range(0, 10)
             };
-            if(currentSpawns != null)
+            if (currentSpawns != null)
             {
-                target.group = currentSpawns[currentSpawnIndex% currentSpawns.Count].group;
+                target.group = currentSpawns[currentSpawnIndex % currentSpawns.Count].group;
             }
             slaveOwnerDictionary[currentRequestOwner].AddLast(target);
             return true;
         }
-        public static void scpm_AddCarbonPlayers_specific_post(ServerCarbonPlayersManager __instance, Dictionary<int, CarbonPlayerRepresentation> ___carbonPlayers , dfList<int> ___carbonPlayerIDs, bool __result)
+        public static void scpm_AddCarbonPlayers_specific_post(ServerCarbonPlayersManager __instance, Dictionary<int, CarbonPlayerRepresentation> ___carbonPlayers, dfList<int> ___carbonPlayerIDs, bool __result)
         {
             currentSpawnIndex++;
-            if(carbonPlayers == null || carbonPlayerIDs == null)
+            if (carbonPlayers == null || carbonPlayerIDs == null)
             {
                 carbonPlayers = ___carbonPlayers;
                 carbonPlayerIDs = ___carbonPlayerIDs;
@@ -203,7 +205,7 @@ namespace DemoMod
         }
 
 
-        public static  bool scpm_InitiateCarbonPlayer_pre(ref NetworkPlayer __result)
+        public static bool scpm_InitiateCarbonPlayer_pre(ref NetworkPlayer __result)
         {
             NetworkPlayer networkPlayer = Network.NetworkClientAllocator.Allocate();
             networkPlayer.isCarbonPlayer = true;
@@ -222,7 +224,7 @@ namespace DemoMod
             string regimentBannerCode = ownerRoundPlayer.PlayerRoundInformation.InitialDetails.RegimentBannerCode;
             int regimentScore = ownerRoundPlayer.PlayerRoundInformation.InitialDetails.RegimentScore;
             string namePrefix = currentRequestOwner.ToString();
-            if(currentSpawns != null)
+            if (currentSpawns != null)
             {
                 namePrefix = currentSpawns[0].namePrefix;
             }
@@ -241,7 +243,7 @@ namespace DemoMod
                 RegimentBannerCode = regimentBannerCode,
                 RegimentScore = regimentScore
             };
-            if(serverGameManager == null)
+            if (serverGameManager == null)
             {
                 initComponent();
             }
@@ -252,7 +254,7 @@ namespace DemoMod
         public static void scpm_InitiateCarbonPlayer_post(ref uLink.NetworkPlayer __result)
         {
             //执行Bot 初始化(init slave object)
-            if (slaveOwnerDictionary.ContainsKey(currentRequestOwner)) 
+            if (slaveOwnerDictionary.ContainsKey(currentRequestOwner))
             {
                 slaveOwnerDictionary[currentRequestOwner].Last().playerId = __result.id;
                 slavePlayerDictionary[__result.id] = slaveOwnerDictionary[currentRequestOwner].Last();
@@ -261,14 +263,14 @@ namespace DemoMod
         }
         public static void scpm_GenerateClientChosenSpawnSettings_post(ref ClientChosenSpawnSettings __result, ModelUniformDataRepository ___modelUniformDataRepository)
         {
-            if(currentSpawns == null || currentSpawnIndex >= currentSpawns.Count)
+            if (currentSpawns == null || currentSpawnIndex >= currentSpawns.Count)
             {
                 //Debug.Log("demo: " + currentSpawns.Count + " index; " + currentSpawnIndex);
                 return;
             }
- //           int spawnSectionId = __result.SpawnSectionID;
- //          SpawnSection section = spawnSectionManager.availableSpawnSections[spawnSectionId];
-//FIX spawn section invalid here
+            //           int spawnSectionId = __result.SpawnSectionID;
+            //          SpawnSection section = spawnSectionManager.availableSpawnSections[spawnSectionId];
+            //FIX spawn section invalid here
             try
             {
                 int temp = currentSpawnIndex % currentSpawns.Count;
@@ -279,8 +281,8 @@ namespace DemoMod
 
                 if (idx >= list.Count)
                 {
-                    Debug.Log("demo: out of Range Index.");
-                    return ;
+                    //Debug.Log("demo: out of Range Index.");
+                    return;
                 }
                 __result.CharacterUniformIdentifier = (byte)list[idx].UniformId;
                 __result.ClassMedalID = 17;
@@ -288,7 +290,7 @@ namespace DemoMod
                 int rand = UnityEngine.Random.Range(0, list[idx].HeadIds.Length);
                 __result.CharacterHeadIdentifier = (byte)list[idx].HeadIds[rand];
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 Debug.Log("demo: exception in scpm_GenerateClientChosenSpawnSettings_post" + ex.ToString());
             }
@@ -313,19 +315,25 @@ namespace DemoMod
                 {
                     SlavePlayer slave = slavePlayerDictionary[networkPlayer.id];
                     int ownerID = slave.ownerId;
-                    slavePlayerDictionary.Remove(slave.playerId);
-                    slavePlayerTargetTransforms.Remove(slave.playerId);
-                    slaveOwnerDictionary[ownerID].Remove(slave);
-                    serverCarbonPlayersManager.RemoveCarbonPlayer(slave.playerId);
+                    carbonPlayers.Remove(slave.playerId);
+                    carbonPlayerIDs.Remove(slave.playerId);
+                    Network.NetworkClientAllocator.Deallocate(networkPlayer, 0.0);
+                    cleanupSlave(slave);
                 }
-            }catch ( Exception ex)
+            } catch (Exception ex)
             {
                 Debug.Log("demo: Exception at sgm_InformPlayerAboutUnableToSpawn_post " + ex.ToString());
             }
 
         }
 
-        public static void scpm_FixedUpdate_post() 
+        //Try to fix KeyNotFound bug(work around)
+        public static void scpm_FixedUpdate_pre()
+        {
+            //not now
+        }
+       
+        public static void scpm_FixedUpdate_post(Dictionary<int, CarbonPlayerRepresentation> ___carbonPlayers, dfList<int> ___carbonPlayerIDs) 
         {
             try
             {
@@ -356,7 +364,12 @@ namespace DemoMod
             {
                 Debug.Log("demo exception in scpm_FixedUpdate_post: " + ex.ToString());
             }
-           
+
+            if (carbonPlayers == null || carbonPlayerIDs == null)
+            {
+                carbonPlayers = ___carbonPlayers;
+                carbonPlayerIDs = ___carbonPlayerIDs;
+            }
         }
 
         private static void FixedUpdate_formInfantryLine(KeyValuePair<int , DemoInfantryLine> pair)
@@ -543,12 +556,13 @@ namespace DemoMod
                     break; // Fire at will is set to all bots!
                 }
                 //serverRoundPlayerManager.ResolveRoundPlayer(slaveId).WeaponHolder.ActiveWeaponData.
-                if (slave.isAlive && slave.isFiringAtWill && slave.hasAmmo && !slave.isReloading   && !slave.follow)
+                if (slave.isAlive && slave.isFiringAtWill && slave.hasAmmo && !slave.isReloading   && !slave.follow && !slave.isAiming)
                 {
-                    action(ownerId, slaveId.ToString(), "randomAim");
-                    serverCarbonPlayersManager.StartCoroutine(waitAction(0.5f, ownerId, "fire", slaveId: slaveId));
+                    action(ownerId, slaveId.ToString(), "randomAim", additionalArgs: "40");
+                    serverCarbonPlayersManager.StartCoroutine(waitAction(0.8f * (slave.rand %5), ownerId, PlayerActions.FireFirearm.ToString(), slaveId: slaveId));
+                    serverCarbonPlayersManager.StartCoroutine(waitAction(0.5f + 0.8f * (slave.rand % 5), ownerId, PlayerActions.StopAimingFirearm.ToString(), slave.playerId));
                 }
-                if(slave.isAlive && slave.isFiringAtWill && !slave.hasAmmo && !slave.isReloading)
+                if(slave.isAlive && slave.isFiringAtWill && !slave.hasAmmo && !slave.isReloading && !slave.isAiming)
                 {
                     serverCarbonPlayersManager.StartCoroutine(waitAction(1f, ownerId, "reload", slaveId: slaveId));
 
@@ -557,9 +571,31 @@ namespace DemoMod
             
         }
 
+        private static void FixedUpdate_handleCharge(KeyValuePair<int, LinkedList<SlavePlayer>> pair)
+        {
+            int ownerId = pair.Key;
+
+            foreach (SlavePlayer slave in pair.Value)
+            {
+                int slaveId = slave.playerId;
+                if (!slave.isCharge)
+                {
+                    break; //Charge is set to all bots!
+                }
+                if(slave.isAlive && slave.isCharge && !slave.follow)
+                {
+
+                }
+            }
+        }
         public static bool scpm_UpdateCarbonPlayerInput_pre(ServerCarbonPlayersManager __instance, CarbonPlayerRepresentation carbonPlayer, ref ServerRoundPlayer player, ref PlayerActions playerAction, MeleeStrikeType meleeStrike, MeleeStrikeManager ___meleeStrikeManager)
         {
-
+            //In case NullReference
+            if(carbonPlayer == null || player == null)
+            {
+                return false;
+            }
+            
             try
             {
                 if ((playerAction != PlayerActions.None && (playerAction != PlayerActions.FireFirearm)))
@@ -1096,11 +1132,13 @@ namespace DemoMod
                     }
                     serverBannedPlayersManager.RevivePlayer(ownerId, slave.playerId, "");
                     serverRoundPlayerManager.RemovePlayer(carbonPlayers[slave.playerId].networkPlayer, false);
+
                     EnhancedRC.networkView.RPC<int>("RemotePlayerLeftRound", uLinkNetworkConnectionsCollection.connections, slave.playerId);
                     slavePlayerDictionary.Remove(slave.playerId);
                     slavePlayerTargetTransforms.Remove(slave.playerId);
-                    if(carbonPlayers != null)
+                    if (carbonPlayers != null  && carbonPlayerIDs != null) //Should not be null 
                     {
+                        carbonPlayerIDs.Remove(slave.playerId);
                         carbonPlayers.Remove(slave.playerId);
                     }
                 }
@@ -1220,7 +1258,7 @@ namespace DemoMod
             RoundPlayer ownerRoundPlayer;
             List<SlavePlayer> slaves = new List<SlavePlayer>();
             PlayerActions targetAction = PlayerActions.None;
-
+            List<SlavePlayer> problematicSpawns = new List<SlavePlayer>();
            
             var update = HarmonyLib.AccessTools.Method(typeof(ServerCarbonPlayersManager), "UpdateCarbonPlayerInput");
 
@@ -1261,9 +1299,14 @@ namespace DemoMod
                 try
                 {
                     slaves.Add(slavePlayerDictionary[int.Parse(groupName)]);
-                }catch (Exception ex)
+                }catch(System.Collections.Generic.KeyNotFoundException)
                 {
-                    Debug.Log("demo: Exception in EnhancedBots.action" + ex.ToString());
+                    return "";
+                }
+                catch (Exception ex)
+                {
+                    Debug.Log(string.Format("demo: Exception in EnhancedBots.action {0} {1}" , action,ex.ToString()));
+                    return "demo: error";
                 }
             }
             if (slaves.Count == 0)
@@ -1278,7 +1321,7 @@ namespace DemoMod
                     {
                         foreach(SlavePlayer slave in slaves)
                         {
-                            if (!carbonPlayers.ContainsKey(slave.playerId)) { continue; }
+                            if (!carbonPlayers.ContainsKey(slave.playerId)) {problematicSpawns.Add(slave); continue; }
                             CarbonPlayerRepresentation carbonPlayerRepresentation = carbonPlayers[slave.playerId];
                             ServerRoundPlayer serverRoundPlayer = serverRoundPlayerManager.ResolveServerRoundPlayer(slave.playerId);
                             if (serverRoundPlayer == null) { continue; }
@@ -1303,11 +1346,11 @@ namespace DemoMod
                         int idx = 0;
                         foreach (SlavePlayer slave in slaves)
                         {
-                            if (!carbonPlayers.ContainsKey(slave.playerId)) { continue; }
+                            if (!carbonPlayers.ContainsKey(slave.playerId)) { problematicSpawns.Add(slave); continue; }
                             CarbonPlayerRepresentation carbonPlayerRepresentation = carbonPlayers[slave.playerId];
                             ServerRoundPlayer serverRoundPlayer = serverRoundPlayerManager.ResolveServerRoundPlayer(slave.playerId);
                             if (serverRoundPlayer == null) { continue; }
-                            int delayMultiplier = UnityEngine.Random.Range(0, 10);
+                            int delayMultiplier = slave.rand;
                             if (!slave.isAiming)
                             {
                                 update.Invoke(serverCarbonPlayersManager, new object[] { carbonPlayerRepresentation, serverRoundPlayer, PlayerActions.StartAimingFirearm, MeleeStrikeType.None });
@@ -1328,7 +1371,7 @@ namespace DemoMod
                     {
                         foreach (SlavePlayer slave in slaves)
                         {
-                            if (!carbonPlayers.ContainsKey(slave.playerId)) { continue; }
+                            if (!carbonPlayers.ContainsKey(slave.playerId)) { problematicSpawns.Add(slave); continue; }
                             CarbonPlayerRepresentation carbonPlayerRepresentation = carbonPlayers[slave.playerId];
                             ServerRoundPlayer serverRoundPlayer = serverRoundPlayerManager.ResolveServerRoundPlayer(slave.playerId);
                             if (serverRoundPlayer == null) { continue; }
@@ -1342,7 +1385,7 @@ namespace DemoMod
                                 slave.isAiming = false;
                                 serverCarbonPlayersManager.StartCoroutine(waitAction(0.4f, ownerId, PlayerActions.StartReloadFirearm.ToString(), slave.playerId));
                             }
-                            serverCarbonPlayersManager.StartCoroutine(waitAction(12f, ownerId, PlayerActions.FinishReloadFirearm.ToString(), slave.playerId));
+                            serverCarbonPlayersManager.StartCoroutine(waitAction(11.5f, ownerId, PlayerActions.FinishReloadFirearm.ToString(), slave.playerId));
                         }
                         return string.Format("Bot {0} execute {1} requested by {2}", groupName, "reload", ownerId);  
                     }
@@ -1350,7 +1393,7 @@ namespace DemoMod
                     {
                         foreach (SlavePlayer slave in slaves)
                         {
-                            if (!carbonPlayers.ContainsKey(slave.playerId)) { continue; }
+                            if (!carbonPlayers.ContainsKey(slave.playerId)) { problematicSpawns.Add(slave); continue; }
                             CarbonPlayerRepresentation carbonPlayerRepresentation = carbonPlayers[slave.playerId];
                             ServerRoundPlayer serverRoundPlayer = serverRoundPlayerManager.ResolveServerRoundPlayer(slave.playerId);
                             if (serverRoundPlayer == null) { continue; }
@@ -1497,7 +1540,7 @@ namespace DemoMod
                         Debug.Log(string.Format("demo:meleeStrike {0}", mType));
                         foreach (SlavePlayer slave in slaves)
                         {
-                            if (!carbonPlayers.ContainsKey(slave.playerId)) { continue; }
+                            if (!carbonPlayers.ContainsKey(slave.playerId)) { problematicSpawns.Add(slave); continue; }
                             CarbonPlayerRepresentation carbonPlayerRepresentation = carbonPlayers[slave.playerId];
                             ServerRoundPlayer serverRoundPlayer = serverRoundPlayerManager.ResolveServerRoundPlayer(slave.playerId);
                             if (serverRoundPlayer == null) { continue; }
@@ -1516,10 +1559,11 @@ namespace DemoMod
                     }
                 case "randomAim":
                     {
-
+                        int distance = 40;
+                        if (!int.TryParse(additionalArgs, out distance)) { return "randomAim failed!"; };
                         SlavePlayer oneSlave = slaves[0];
                         ServerRoundPlayer serverRoundPlayer = serverRoundPlayerManager.ResolveServerRoundPlayer(oneSlave.playerId);
-                        Collider[] hitColliders = Physics.OverlapSphere(serverRoundPlayer.PlayerTransform.position, 40, 1 << 11);
+                        Collider[] hitColliders = Physics.OverlapSphere(serverRoundPlayer.PlayerTransform.position, distance, 1 << 11);
                         Vector3 targetPosition;
                         try
                         {
@@ -1537,20 +1581,19 @@ namespace DemoMod
                             if(enemyColliders.Count == 0)
                             {
                                 return "demo: randomFire no enemy found";
-                            }else{
-                                int rand = UnityEngine.Random.Range(0, enemyColliders.Count);
-                                randCollider = enemyColliders[rand];
                             }
-
-                            targetPosition = randCollider.gameObject.transform.position;
 
                             foreach ( SlavePlayer slave in slaves)
                             {
+                                CarbonPlayerRepresentation carbonPlayerRepresentation = carbonPlayers[slave.playerId];
+                                update.Invoke(serverCarbonPlayersManager, new object[] { carbonPlayerRepresentation, serverRoundPlayer, PlayerActions.StartAimingFirearm, MeleeStrikeType.None });
+
+                                randCollider = enemyColliders[slave.rand % enemyColliders.Count];
+                                targetPosition = randCollider.gameObject.transform.position;
                                 ServerRoundPlayer slaveRoundPlayer = serverRoundPlayerManager.ResolveServerRoundPlayer(slave.playerId);
                                 slave.currentAimForward = targetPosition - slaveRoundPlayer.PlayerTransform.position;
-                            
                             }
-                            return string.Format("demo: randomFire pos {0}", targetPosition);
+                            return string.Format("demo: randomAim ");
 
                         }                        
                         catch (Exception ex)
@@ -1558,6 +1601,31 @@ namespace DemoMod
                             Debug.Log("demo: excepiton in action:randomFire " + ex.ToString());
                             return "demo: excepiton in action:randomFire " + ex.ToString();
                         }
+                    }
+                case "randomAttack":
+                    {
+                        int distance = 16;
+                        if (!int.TryParse(additionalArgs, out distance)) { return "randomAttack failed!"; };
+                        SlavePlayer oneSlave = slaves[0];
+                        ServerRoundPlayer serverRoundPlayer = serverRoundPlayerManager.ResolveServerRoundPlayer(oneSlave.playerId);
+                        Collider[] hitColliders = Physics.OverlapSphere(serverRoundPlayer.PlayerTransform.position, distance, 1 << 11);
+                        try
+                        {
+                            List<RoundPlayer> enemyRoundPlayers = new List<RoundPlayer>();
+                            foreach(Collider co in hitColliders) 
+                            {
+                                FactionCountry targetFaction = co.GetComponent<RigidbodyCharacter>().GetComponent<PlayerBase>().PlayerStartData.Faction;
+                                if (targetFaction != serverRoundPlayer.PlayerStartData.Faction)
+                                {
+                                    enemyRoundPlayers.Add(co.GetComponent<RigidbodyCharacter>().GetComponent<PlayerBase>().GetComponent<RoundPlayer>());
+                                }
+                            }
+                        }
+                        catch(Exception ex)
+                        {
+                            return "";
+                        }
+                        return "";
                     }
                 case "startFireAtWill":
                     {
@@ -1581,8 +1649,14 @@ namespace DemoMod
             //处理默认指令
             foreach(SlavePlayer slave in slaves)
             {
+                if (!carbonPlayers.ContainsKey(slave.playerId)) { problematicSpawns.Add(slave); continue; }
                 CarbonPlayerRepresentation carbonPlayerRepresentation = carbonPlayers[slave.playerId];
                 ServerRoundPlayer serverRoundPlayer = serverRoundPlayerManager.ResolveServerRoundPlayer(slave.playerId);
+                if(serverRoundPlayer == null)
+                {
+                    problematicSpawns.Add(slave);
+                    continue;
+                }
                 try
                 {
                     if (!HomelessMethods.TryParseEnum<PlayerActions>(action, out targetAction)) { continue; } ;
@@ -1618,6 +1692,7 @@ namespace DemoMod
                         case PlayerActions.FireFirearm:
                             {
                                 slave.hasAmmo = false;
+                                slave.rand = UnityEngine.Random.Range(0, 10);
                                 break;
                             }
                     }
@@ -1631,9 +1706,35 @@ namespace DemoMod
                 }
             }
 
+            //cleanup problematic spawns
+            foreach(SlavePlayer problemSlave in problematicSpawns)
+            {
+                cleanupSlave(problemSlave);
+            }
+
             return string.Format("Bot {0} execute {1} requested by {2}", groupName, action, ownerId);
         }
     
+        private static void cleanupSlave(SlavePlayer slave)
+        {
+            try
+            {
+                slavePlayerDictionary.Remove(slave.playerId);
+                slavePlayerTargetTransforms.Remove(slave.playerId);
+                slaveOwnerDictionary[slave.ownerId].Remove(slave);
+                slaveOwnerInfantryLine.Remove(slave.ownerId);
+                if (carbonPlayers != null && carbonPlayerIDs != null) //Should not be null 
+                {
+                    carbonPlayerIDs.Remove(slave.playerId);
+                    carbonPlayers.Remove(slave.playerId);
+                }
+            }catch( Exception ex)
+            {
+                Debug.Log("demo: exception in cleanupSlave " + ex.ToString());
+            }
+
+        }
+
         public static string setCamera(int ownerId, string groupName, UnityEngine.Vector3 cameraForward)
         {
             ServerRoundPlayer ownerRoundPlayer = serverRoundPlayerManager.ResolveServerRoundPlayer(ownerId);
@@ -1706,7 +1807,6 @@ namespace DemoMod
                 yield break;
             }
         }
-
    
         private static void initComponent()
         {
