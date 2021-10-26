@@ -59,7 +59,7 @@ admin can spawn any number of bots
 In F1 Admin console  
 Send "rc dm enable" to enable the mod  
 Send "rc dm disable" to disable the mod  
-Send "rc dm set MAX_SLAVE 10" to set the upper limit of bots a player can spawn  
+Send "rc dm set MAX_SLAVE ArmyInfantryOfficer 10" to set the upper limit of bots a player can spawn  
 Admin can spawn bots even when the mod is disabled  
 mod is conflict with original carbonPlayers interface!  
 
@@ -73,10 +73,10 @@ After form one line "Stand Ground" to form a double line
 "Load" to reload firearm  
 ...  
  
-**Configuration**
-In !map_rotation
-"rc dm MAX_SLAVE ArmyInfantryOfficer 10" set the max bot an Officer can spawn to 10(default 20).
-*other class's default is 0*
+**Configuration**  
+In !map_rotation  
+"rc dm MAX_SLAVE ArmyInfantryOfficer 10" set the max bot an Officer can spawn to 10(default 20).  
+*other class's default is 0*  
 
  
 Press Q(when spawned as officer)  
