@@ -109,6 +109,9 @@ namespace DemoMod
             var csnuo_CreateProxyPacket_post = AccessTools.Method(typeof(Demomod), "csnuo_CreateProxyPacket_post");
             //harmony.Patch(csnuo_CreateProxyPacket_o, postfix: new HarmonyMethod(csnuo_CreateProxyPacket_post));
 
+            var gcp_ExecuteInput_o = AccessTools.Method(typeof(GameConsolePanel), "ExecuteInput");
+            var gcp_ExecuteInput_pre = AccessTools.Method(typeof(DemoGameMode), "gcp_ExecuteInput_pre");
+            harmony.Patch(gcp_ExecuteInput_o, prefix: new HarmonyMethod(gcp_ExecuteInput_pre));
 
             msg = "DemoMod success loaded!";
             UnityEngine.Debug.Log(msg);

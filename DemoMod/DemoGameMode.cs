@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using HoldfastGame;
-
+using UnityEngine;
 
 namespace DemoMod
 {
@@ -98,6 +98,52 @@ namespace DemoMod
                 }
             }
         }
+   
+        public static bool gcp_ExecuteInput_pre(GameConsolePanel __instance, string input, int adminID)
+        {
+            object[] arguments;
+            string text = __instance.ParseCommand(input.Trim(), out arguments);
+            if(text == "dm")
+            {
+                string [] args = arguments.Cast<string>().ToArray<string>();
+                if(args.Length == 0) { return false; }
+                switch (args[0])
+                {
+                    case "MAX_SLAVE":
+                        {
+                            if(args.Length < 3) { break; }
+                            PlayerClass ownerClass;
+                            int value;
+                            if(!HomelessMethods.TryParseEnum<PlayerClass>(args[1], out ownerClass)) { break; }
+                            if(!int.TryParse(args[2], out value)) { break; }
+                            if (DemoLoginUser.playerClassSlaveThreshold.ContainsKey(ownerClass))
+                            {
+                                DemoLoginUser.playerClassSlaveThreshold[ownerClass] = value;
+                            }
+                            else
+                            {
+                                DemoLoginUser.playerClassSlaveThreshold.Add(ownerClass, value);
+                            }
+                            Debug.Log("Demo: MAX_SLAVE updated!");
+                            break;
+                        }
+                    case "enable":
+                        {
+                            break;
+                        }
+                    case "disable":
+                        {
+                            break;
+                        }
+                }
+                return false;
+            }
+            return true;
+        }
+
+
+
+
     }
 
 }

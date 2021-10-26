@@ -15,7 +15,9 @@ namespace DemoMod
         public int slaveOwned = -1;
         public bool isServerLogon = false;
         public bool botsAdded = false;
-        public static int MAX_SLAVE = 15;
+        public static int MAX_DEFAULT = 20;
+        public static Dictionary<PlayerClass, int> playerClassSlaveThreshold = new Dictionary<PlayerClass, int> { 
+            {PlayerClass.ArmyInfantryOfficer, 20} };
     }
     class EnhancedRC //ServerRemoteConsoleAccessManager
     {
@@ -212,15 +214,18 @@ namespace DemoMod
                         if (arguments.Length < 3) { return "usage: addBots <template> <count> [<name-prefix> <uniformId>]"; }
                         int template ;
                         int count;
-                        PlayerClass pClass;
+                        PlayerClass pClass, ownerClass;
                         FactionCountry fCountry;
+                        
                         try
                         {
                             if (!int.TryParse(arguments[1], out template) && template < 0) { return "templateId must > 0"; }
                             if(int.TryParse(arguments[2], out count) && count < 1) { return "count must > 1"; }
-                            count =  count +loggedOnPlayers[sender.id].slaveOwned > DemoLoginUser.MAX_SLAVE ? DemoLoginUser.MAX_SLAVE - loggedOnPlayers[sender.id].slaveOwned : count;
                             fCountry = serverRoundPlayerManager.ResolveServerRoundPlayer(sender.id).SpawnData.Faction;
-                            if(fCountry == FactionCountry.None) { return "you need to spawn first!"; }
+                            if (fCountry == FactionCountry.None) { return "you need to spawn first!"; }
+                            ownerClass = serverRoundPlayerManager.ResolveServerRoundPlayer(sender.id).SpawnData.ClassType;
+                            int max_slave = DemoLoginUser.playerClassSlaveThreshold.ContainsKey(ownerClass) ? DemoLoginUser.playerClassSlaveThreshold[ownerClass] : DemoLoginUser.MAX_DEFAULT;
+                            count =  count +loggedOnPlayers[sender.id].slaveOwned > max_slave ? max_slave - loggedOnPlayers[sender.id].slaveOwned : count;
                             pClass = HomelessMethods.ParseEnum<PlayerClass>(arguments[2].ToString());
                             string namePrefix;
                             int uniformId;
@@ -258,7 +263,7 @@ namespace DemoMod
                             EnhancedBots.addBots(sender.id, spawns);
                             loggedOnPlayers[sender.id].slaveOwned += count;
                             loggedOnPlayers[sender.id].botsAdded = true;
-                            return "success add bots for "+sender.id;
+                            return string.Format("success add {1} bots for {0}",sender.id, count);
 
                         }
                         catch(Exception ex)
@@ -341,6 +346,23 @@ namespace DemoMod
                         }
                         return EnhancedBots.action(sender.id, group, action);
                     }
+                case "do2":
+                    {
+                        string action;
+                        string sId;
+                        if (arguments.Length < 3) { return "usage: do <id> <PlayerActions> [<additional>]"; }
+
+                        sId = arguments[1].Trim();
+                        action = arguments[2].Trim();
+                        int slaveId;
+                        if (!int.TryParse(sId, out slaveId)) { return "Invalid slaveId."; };
+                        //if (arguments.Length == 4)
+                        //{
+                        //    return EnhancedBots.action_n(,  action, arguments[3].Trim());
+                        //}
+                        //return EnhancedBots.action_n(slave, action);
+                        return "";
+                    }
                 case "dump":
                     {
                         if (arguments.Length < 2) { return "usage: dump <id>"; }
@@ -383,17 +405,38 @@ namespace DemoMod
                         {
                             return "not allowed!";
                         }
-                        if (arguments.Length < 3) { return "usage: set <variable> <value>"; }
+                        if (arguments.Length < 3) { return "usage: set <variable> <value> [<additional>]"; }
                         try
                         {
                             string varName = arguments[1].Trim();
                             if (varName == "MAX_SLAVE")
                             {
-                                DemoLoginUser.MAX_SLAVE = int.Parse(arguments[2]);
+                                if (arguments.Length < 4) { return "rc dm set MAX_SLAVE <PlayerClass> <Count>"; }
+                                PlayerClass ownerClass;
+                                int value;
+                                if (!HomelessMethods.TryParseEnum<PlayerClass>(arguments[2], out ownerClass)) { return "rc dm set MAX_SLAVE <PlayerClass> <Count>"; }
+                                if (!int.TryParse(arguments[3], out value)) { return "rc dm set MAX_SLAVE <PlayerClass> <Count>"; }
+                                if (DemoLoginUser.playerClassSlaveThreshold.ContainsKey(ownerClass))
+                                {
+                                    DemoLoginUser.playerClassSlaveThreshold[ownerClass] = value;
+                                }
+                                else
+                                {
+                                    DemoLoginUser.playerClassSlaveThreshold.Add(ownerClass, value);
+                                }
                             }
-                            return "ok";
+                            else if(varName == "MAX_DEFAULT")
+                            {
+                                int value;
+                                if (!int.TryParse(arguments[2], out value))
+                                {
+                                    return "error";
+                                }
+                                DemoLoginUser.MAX_DEFAULT = value;
+                            }
                         }
                         catch (Exception ex) { return "error parsing variable"+ex; }
+                        return "ok";
                     }
                 case "weapon":
                     {
