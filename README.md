@@ -14,22 +14,24 @@ How to update:
 Windows:  
 unzip Bepinex_x64_xxx.zip to game *root folder* (eg. "D:\Program Files\Steam\steamapps\common\Holdfast Nations At War\")  
 Linux:  
+* install mono
+```
+sudo apt update
+sudo apt install dirmngr gnupg apt-transport-https ca-certificates
+sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF
+sudo sh -c 'echo "deb https://download.mono-project.com/repo/ubuntu stable-bionic main" > /etc/apt/sources.list.d/mono-official-stable.list'
+sudo apt update
+sudo apt install mono-complete
+mono --version
+```
 unzip Bepinex_unix_xxx.zip to game *root folder* (eg. "/home/steam/holdfastnaw-dedicated/")  
+
+* install bepinex follow this guide  
+https://docs.bepinex.dev/articles/user_guide/installation/index.html?tabs=tabid-nix  
+
 2. Change directory to game *root folder*  
 Windows:  
-Run Holdfast Naw.exe  
-Linux:  
-Find entry.sh and run_bepinex.sh on github, copy and replace the original file("/home/your_user_name/entry.sh", /home/your_user_name/holdfastnaw-dedicated/run_bepinex.sh).  
-My server is docker, so directory might be  different.  
-If your server is docker, you need to login to container as root and  install file utils before run the game:  
-```
-$ docker exec -u root -it container_name bash   
-$ apt install file  
-$ exit  
-$ docker exec  -it container_name bash  
-$ bash /home/your_user_name/holdfastnaw-dedicated/run_bepinex.sh  
-```
-Ctrl+c to stop the game   
+Run Holdfast Naw.exe   
 
 3. Create Mod folder  
 create directory "*root folder*/BepInEx/plugins/DemoMod/"  
