@@ -72,7 +72,13 @@ Press V(V menu controlls)
 After form one line "Stand Ground" to form a double line  
 "Load" to reload firearm  
 ...  
-  
+ 
+**Configuration**
+In !map_rotation
+"rc dm MAX_SLAVE ArmyInfantryOfficer 10" set the max bot an Officer can spawn to 10(default 20).
+*other class's default is 0*
+
+ 
 Press Q(when spawned as officer)  
 Fire  
 ...  
