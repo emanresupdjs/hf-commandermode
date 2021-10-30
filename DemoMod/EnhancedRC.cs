@@ -18,6 +18,8 @@ namespace DemoMod
         public static int MAX_DEFAULT = 20;
         public static Dictionary<PlayerClass, int> playerClassSlaveThreshold = new Dictionary<PlayerClass, int> { 
             {PlayerClass.ArmyInfantryOfficer, 20} };
+        public FactionCountry fCountry = FactionCountry.None;
+        public PlayerClass pClass = PlayerClass.None;
     }
     class EnhancedRC //ServerRemoteConsoleAccessManager
     {
@@ -342,9 +344,9 @@ namespace DemoMod
 
                         if(arguments.Length == 4)
                         {
-                            return EnhancedBots.action(sender.id, group, action, arguments[3].Trim());
+                            return EnhancedBots.action_g(sender.id, group, action, arguments[3].Trim());
                         }
-                        return EnhancedBots.action(sender.id, group, action);
+                        return EnhancedBots.action_g(sender.id, group, action);
                     }
                 case "do2":
                     {
@@ -358,9 +360,9 @@ namespace DemoMod
                         if (!int.TryParse(sId, out slaveId)) { return "Invalid slaveId."; };
                         //if (arguments.Length == 4)
                         //{
-                        //    return EnhancedBots.action_n(,  action, arguments[3].Trim());
+                        //    return EnhancedBots.action_s(,  action, arguments[3].Trim());
                         //}
-                        //return EnhancedBots.action_n(slave, action);
+                        //return EnhancedBots.action_s(slave, action);
                         return "";
                     }
                 case "dump":
@@ -369,12 +371,12 @@ namespace DemoMod
                         try
                         {
                             SlavePlayer slave = EnhancedBots.slavePlayerDictionary[int.Parse(arguments[1])];
-                            string result = string.Format("id: {0} |owner: {1} | isAiming: {2} | isAlive: {3} | isCrouching: {4} | aiming: {5}", slave.playerId, slave.ownerId, slave.isAiming, slave.isAlive, slave.isCrouching, slave.currentAimForward.ToString());
+                            string result = string.Format("id: {0} |owner: {1} | isAiming: {2} | isAlive: {3} | isCrouching: {4} | aiming: {5} | rotation: {6} | owner yaw: {7}", slave.playerId, slave.ownerId, slave.isAiming, slave.isAlive, slave.isCrouching, slave.currentAimForward.ToString(), slave.roundPlayer.PlayerTransform.rotation.eulerAngles.ToString(), serverRoundPlayerManager.ResolveRoundPlayer( slave.ownerId).PlayerBase.Yaw);
                             return result;
                         }
-                        catch
+                        catch(Exception ex)
                         {
-                            return "error";
+                            return "error "+ex.ToString();
                         }
                         
                     }

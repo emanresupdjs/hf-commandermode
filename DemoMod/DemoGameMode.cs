@@ -1,9 +1,10 @@
-﻿using System;
+﻿using HoldfastGame;
+using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using HoldfastGame;
+using System.Reflection;
+using uLink;
 using UnityEngine;
 
 namespace DemoMod
@@ -94,11 +95,50 @@ namespace DemoMod
                 if(s_alive != null)
                 {
                     EnhancedBots.serverBannedPlayersManager.SlayPlayer(player.NetworkPlayerID, s_alive.playerId, "revive owner");
-                    EnhancedBots.serverBannedPlayersManager.RevivePlayer(player.NetworkPlayerID, player.NetworkPlayerID, "revive owner");
+                    EnhancedBots.serverCarbonPlayersManager.StartCoroutine(waitRevive(1f, player));
                 }
             }
         }
    
+        public static void pdm_ProcessPlayerHealthChanged_horsePolicy(RoundPlayer player, PlayerHealthChangedEventArgs args) //Horse rule
+        {
+            if (args.ChangeReason != PlayerHealthChangedReason.HitByMeleeWeapon && args.ChangeReason != PlayerHealthChangedReason.HitByMeleeSecondaryAttack)
+            {
+                return;
+            }
+            HitByMeleeWeaponPlayerHealthChangedData hitByMeleeWeaponPlayerHealthChangedData = (HitByMeleeWeaponPlayerHealthChangedData)args.Packet.HealthChangedData;
+            RoundPlayer roundPlayer = EnhancedBots.serverRoundPlayerManager.ResolveRoundPlayer(hitByMeleeWeaponPlayerHealthChangedData.AttackingPlayerID);
+            if (roundPlayer == null) { return; }
+            if (roundPlayer.PlayerStartData.ClassType != PlayerClass.Hussar && roundPlayer.PlayerStartData.ClassType != PlayerClass.CuirassierDragoon) { return; }
+
+            try
+            {
+
+                int friendly = 0;
+                Collider[] hitColliders = Physics.OverlapSphere(roundPlayer.PlayerTransform.position, 16, 1 << 11);
+                foreach (Collider co in hitColliders)
+                {
+                    FactionCountry targetFaction = co.GetComponent<RigidbodyCharacter>().GetComponent<PlayerBase>().PlayerStartData.Faction;
+                    if (targetFaction == roundPlayer.PlayerBase.PlayerStartData.Faction)
+                    {
+                        friendly += 1;
+                    }
+                }
+                if (friendly < 2)
+                {
+                    EnhancedBots.serverCarbonPlayersManager.StartCoroutine(waitRevive(0.1f, player));
+                    EnhancedBots.serverBannedPlayersManager.SlayPlayer(0, roundPlayer.NetworkPlayerID, "You kill out of range!");
+                }
+                //Debug.Log(string.Format("Demo: {0} friendly", friendly));
+
+            }
+            catch(Exception ex)
+            {
+                Debug.Log("Demo: exception: " + ex.ToString());
+            }
+
+        }
+
         public static bool gcp_ExecuteInput_pre(GameConsolePanel __instance, string input, int adminID)
         {
             object[] arguments;
@@ -141,6 +181,19 @@ namespace DemoMod
             return true;
         }
 
+        private static IEnumerator waitRevive(float seconds, RoundPlayer player)
+        {
+            yield return new WaitForSeconds(seconds);
+            EnhancedBots.serverBannedPlayersManager.RevivePlayer(player.NetworkPlayerID, player.NetworkPlayerID, "revive");
+            yield break;
+        }
+
+        private static IEnumerator waitSlay(float seconds, RoundPlayer player)
+        {
+            yield return new WaitForSeconds(seconds);
+            EnhancedBots.serverBannedPlayersManager.SlayPlayer(player.NetworkPlayerID, player.NetworkPlayerID, "revive");
+            yield break;
+        }
 
 
 

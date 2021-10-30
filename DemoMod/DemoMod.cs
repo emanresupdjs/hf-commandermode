@@ -27,7 +27,7 @@ namespace DemoMod
             //var scpcc_Execute_post = AccessTools.Method(typeof(EnhancedBots), "scpcc_Execute_post");
             //harmony.Patch(scpcc_Execute_o, prefix: new HarmonyMethod(scpcc_Execute_pre) , postfix: new HarmonyMethod(scpcc_Execute_post));
 
-            var scpm_AddCarbonPlayers_o = AccessTools.Method(typeof(ServerCarbonPlayersManager), "AddCarbonPlayers", new[] { typeof(FactionCountry), typeof(PlayerClass) });
+            var scpm_AddCarbonPlayers_o = HarmonyLib.AccessTools.Method(typeof(ServerCarbonPlayersManager), "AddCarbonPlayers", new[] { typeof(FactionCountry), typeof(PlayerClass), typeof(string), typeof(string), typeof(int) });
             var scpm_AddCarbonPlayers_pre = AccessTools.Method(typeof(EnhancedBots), "scpm_AddCarbonPlayers_specific_pre");
             var scpm_AddCarbonPlayers_post = AccessTools.Method(typeof(EnhancedBots), "scpm_AddCarbonPlayers_specific_post");
             harmony.Patch(scpm_AddCarbonPlayers_o, prefix: new HarmonyMethod(scpm_AddCarbonPlayers_pre), postfix: new HarmonyMethod(scpm_AddCarbonPlayers_post));
@@ -99,6 +99,11 @@ namespace DemoMod
             var spdm_UpdatePlayerHealth_revivePolicy_o = AccessTools.Method(typeof(ServerPlayerDamageManager), "_UpdatePlayerHealth");
             var spdm_UpdatePlayerHealth_revivePolicy = AccessTools.Method(typeof(DemoGameMode), "spdm_UpdatePlayerHealth_revivePolicy");
             harmony.Patch(spdm_UpdatePlayerHealth_revivePolicy_o, postfix: new HarmonyMethod(spdm_UpdatePlayerHealth_revivePolicy));
+
+            var pdm_ProcessPlayerHealthChanged_o = AccessTools.Method(typeof(PlayerDamageManager), "ProcessPlayerHealthChanged");
+            var pdm_ProcessPlayerHealthChanged_horsePolicy = AccessTools.Method(typeof(DemoGameMode), "pdm_ProcessPlayerHealthChanged_horsePolicy");
+            harmony.Patch(pdm_ProcessPlayerHealthChanged_o, postfix: new HarmonyMethod(pdm_ProcessPlayerHealthChanged_horsePolicy));
+
 
             var sgm_InformPlayerAboutUnableToSpawn_o = AccessTools.Method(typeof(ServerGameManager), "InformPlayerAboutUnableToSpawn");
             var sgm_InformPlayerAboutUnableToSpawn_post = AccessTools.Method(typeof(EnhancedBots), "sgm_InformPlayerAboutUnableToSpawn_post");

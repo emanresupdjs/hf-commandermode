@@ -36,6 +36,7 @@ namespace DemoMod
         public int rand = 0;
         public string group = "all";
         public Queue<DemoAction> actionQueue = null;
+        public Queue<DemoTransform> transformQueue = null;
         public CarbonPlayerRepresentation carbonPlayerRepresentation = null;
         public RoundPlayer roundPlayer = null;
     }
@@ -50,6 +51,8 @@ namespace DemoMod
         public bool isCollistion = false;
         public bool checkDistanceBlocking = true;
         public DemoAction demoAction = null;
+
+        
     }
 
     public class DemoInfantryLine
@@ -170,7 +173,6 @@ namespace DemoMod
         public static Dictionary<int, LinkedList<SlavePlayer>> slaveOwnerDictionary = new Dictionary<int, LinkedList<SlavePlayer>>();
         public static Dictionary<int, DemoInfantryLine> slaveOwnerInfantryLine = new Dictionary<int, DemoInfantryLine>();
         public static Dictionary<int, SlavePlayer> slavePlayerDictionary = new Dictionary<int, SlavePlayer>();
-        public static Dictionary<int, Queue<DemoTransform>> slavePlayerTargetTransforms = new Dictionary<int, Queue<DemoTransform>>();
         public static List<ForceFacingDirection> faceDirections = new List<ForceFacingDirection>();
         public static bool inuse = false;
         public static int currentRequestOwner = -1;
@@ -201,7 +203,8 @@ namespace DemoMod
                 currentAimForward = Vector3.zero,
                 index = currentSpawnIndex,
                 rand = UnityEngine.Random.Range(0, 10),
-                actionQueue = new Queue<DemoAction>()
+                actionQueue = new Queue<DemoAction>(),
+                transformQueue = new Queue<DemoTransform>()
             };
             if (currentSpawns != null)
             {
@@ -274,7 +277,7 @@ namespace DemoMod
             {
                 slaveOwnerDictionary[currentRequestOwner].Last().playerId = __result.id;
                 slavePlayerDictionary[__result.id] = slaveOwnerDictionary[currentRequestOwner].Last();
-                slavePlayerTargetTransforms[__result.id] = new Queue<DemoTransform>();
+                //slavePlayerTargetTransforms[__result.id] = new Queue<DemoTransform>();
             }
         }
         public static void scpm_GenerateClientChosenSpawnSettings_post(ref ClientChosenSpawnSettings __result, ModelUniformDataRepository ___modelUniformDataRepository)
@@ -415,7 +418,7 @@ namespace DemoMod
                     if (!slave.isAlive)
                     {
                         lineInfantry[0].Remove(slave);
-                        slavePlayerTargetTransforms[slave.playerId].Clear();
+                        slave.transformQueue.Clear();
                         hasDeath0 = true;
                     }
                 }
@@ -425,7 +428,7 @@ namespace DemoMod
                     if (!slave.isAlive)
                     {
                         lineInfantry[1].Remove(slave);
-                        slavePlayerTargetTransforms[slave.playerId].Clear();
+                        slave.transformQueue.Clear();
                         hasDeath1 = true;
                     }
                 }
@@ -452,11 +455,8 @@ namespace DemoMod
                         {
                             var slave = slaves[i];
                             slave.follow = false;
-                            if (slavePlayerTargetTransforms.ContainsKey(slave.playerId))
-                            {
-                                slavePlayerTargetTransforms[slave.playerId].Clear();
-                            }
-                            walkTo(slave.playerId, l0_transforms[i]);
+                            slave.transformQueue.Clear();
+                            walkTo(slave, l0_transforms[i]);
                             lineInfantry[0].AddLast(slave);
                         }
                     }
@@ -469,20 +469,18 @@ namespace DemoMod
                         {
                             SlavePlayer slave = slaves[i];
                             slave.follow = false;
-                            if (slavePlayerTargetTransforms.ContainsKey(slave.playerId))
-                            {
-                                slavePlayerTargetTransforms[slave.playerId].Clear();
-                            }
+                            slave.transformQueue.Clear();
+
                             int num = i < line.oneRow ? 0 : 1;
                             if (num == 0)
                             {
                                 if (line.doUpdate)
                                 {
-                                    walkTo(slave.playerId, l0_transforms[i]);
+                                    walkTo(slave, l0_transforms[i]);
                                 }
                                 else
                                 {
-                                    serverCarbonPlayersManager.StartCoroutine(waitWalkTo(4, slave.playerId, l0_transforms[i]));
+                                    serverCarbonPlayersManager.StartCoroutine(waitWalkTo(4, slave, l0_transforms[i]));
                                 }
                             }
                             else
@@ -490,12 +488,12 @@ namespace DemoMod
                                 var rp = serverRoundPlayerManager.ResolveRoundPlayer(slave.playerId);
                                 if (line.doUpdate)
                                 {
-                                    walkTo(slave.playerId, l1_transforms[i - line.oneRow]);
+                                    walkTo(slave, l1_transforms[i - line.oneRow]);
                                 }
                                 else
                                 {
-                                    serverCarbonPlayersManager.StartCoroutine(waitWalkTo((i - line.oneRow) * 0.6f, slave.playerId, new DemoTransform() { position = rp.PlayerTransform.position + rp.PlayerTransform.forward * 0.8f, forward = rp.PlayerTransform.right * -1f, checkDistanceBlocking = false }));
-                                    serverCarbonPlayersManager.StartCoroutine(waitWalkTo(0.9f * (i - line.oneRow) + 1f, slave.playerId, l1_transforms[i - line.oneRow]));
+                                    serverCarbonPlayersManager.StartCoroutine(waitWalkTo((i - line.oneRow) * 0.6f, slave, new DemoTransform() { position = rp.PlayerTransform.position + rp.PlayerTransform.forward * 0.8f, forward = rp.PlayerTransform.right * -1f, checkDistanceBlocking = false }));
+                                    serverCarbonPlayersManager.StartCoroutine(waitWalkTo(0.9f * (i - line.oneRow) + 1f, slave, l1_transforms[i - line.oneRow]));
                                     serverCarbonPlayersManager.StartCoroutine(waitAction(slaves.Count / 2 + 1f, ownerId, PlayerActions.StartCrouching.ToString(), slaveId: slave.playerId));
                                 }
                             }
@@ -510,24 +508,19 @@ namespace DemoMod
                 {
                     var slave = newListLineInfantry[i];
                     slave.follow = false;
-                    if (slavePlayerTargetTransforms.ContainsKey(slave.playerId))
-                    {
-                        slavePlayerTargetTransforms[slave.playerId].Clear();
-                    }
+                    slave.transformQueue.Clear();
+
                     var tempTransform = new DemoTransform() { position = l0_transforms[i].position, forward = l0_transforms[i].forward, checkDistanceBlocking = false };
-                    serverCarbonPlayersManager.StartCoroutine(waitWalkTo((0.7f * i) + 0.5f, slave.playerId, tempTransform));
+                    serverCarbonPlayersManager.StartCoroutine(waitWalkTo((0.7f * i) + 0.5f, slave, tempTransform));
                 }
                 newListLineInfantry = new List<SlavePlayer>(lineInfantry[1]); //第二排
                 for (int i = 0; i < newListLineInfantry.Count && hasDeath1; ++i)
                 {
                     var slave = newListLineInfantry[i];
                     slave.follow = false;
-                    if (slavePlayerTargetTransforms.ContainsKey(slave.playerId))
-                    {
-                        slavePlayerTargetTransforms[slave.playerId].Clear();
-                    }
+                    slave.transformQueue.Clear();
                     var tempTransform = new DemoTransform() { position = l1_transforms[i].position, forward = l1_transforms[i].forward, checkDistanceBlocking = false };
-                    serverCarbonPlayersManager.StartCoroutine(waitWalkTo((0.7f * i) + 0.5f, slave.playerId, tempTransform));
+                    serverCarbonPlayersManager.StartCoroutine(waitWalkTo((0.7f * i) + 0.5f, slave, tempTransform));
                 }
                 hasDeath0 = false;
                 hasDeath1 = false;
@@ -583,14 +576,14 @@ namespace DemoMod
                     else { firstAction = slaveActionQueue.Peek(); }
                 }
                 if (firstAction.isOngoing) { return; }
-                if (firstAction.isWait) { firstAction.isOngoing = true; serverCarbonPlayersManager.StartCoroutine(waitAction_n(firstAction.waitTime,  firstAction.action, slave,demoAction: firstAction)); }
-                else { firstAction.isOngoing = true; serverCarbonPlayersManager.StartCoroutine(waitAction_n(0.01f, firstAction.action, slave, demoAction: firstAction)); }
+                if (firstAction.isWait) { firstAction.isOngoing = true; serverCarbonPlayersManager.StartCoroutine(waitaction_s(firstAction.waitTime,  firstAction.action, slave,demoAction: firstAction)); }
+                else { firstAction.isOngoing = true; serverCarbonPlayersManager.StartCoroutine(waitaction_s(0.01f, firstAction.action, slave, demoAction: firstAction)); }
 
             }
 
         }
 
-        public static bool scpm_UpdateCarbonPlayerInput_pre(ServerCarbonPlayersManager __instance, CarbonPlayerRepresentation carbonPlayer, ref ServerRoundPlayer player, ref PlayerActions playerAction, MeleeStrikeType meleeStrike, MeleeStrikeManager ___meleeStrikeManager)
+        public static bool scpm_UpdateCarbonPlayerInput_pre(ServerCarbonPlayersManager __instance, CarbonPlayerRepresentation carbonPlayer, ref ServerRoundPlayer player, ref PlayerActions playerAction)
         {
             //In case NullReference
             if(carbonPlayer == null || player == null)
@@ -599,7 +592,7 @@ namespace DemoMod
             }
             try
             {
-                if ((playerAction != PlayerActions.None && (playerAction != PlayerActions.FireFirearm) && (playerAction != PlayerActions.ExecuteMeleeWeaponStrike)))
+                if ((playerAction != PlayerActions.None && (playerAction != PlayerActions.FireFirearm) && (playerAction != PlayerActions.ExecuteMeleeWeaponStrike) && (!IsPlayerActionMeleeHold(playerAction))))
                 { return true; }
                 int slaveId = carbonPlayer.playerID;
                 if (!slavePlayerDictionary.ContainsKey(slaveId))
@@ -620,30 +613,29 @@ namespace DemoMod
                 //bot 跟随 (update follow status)
                 if (slave.follow)
                 {
-                    stopSlaveMovement_clearTargetTransform(slave.playerId);
+                    stopSlaveMovement_clearTargetTransform(slave);
                     Vector3 ownerPosition = new Vector3(ownerRoundPlayer.PlayerTransform.position.x, ownerRoundPlayer.PlayerTransform.position.y, ownerRoundPlayer.PlayerTransform.position.z);
                     Vector3 ownerBack = ownerRoundPlayer.PlayerTransform.forward * -1f;
                     Vector3 targetPosition = ownerPosition + (ownerBack * 0.9f * (slave.index + 1.5f));
                     Vector3 targetForward = new Vector3(ownerRoundPlayer.PlayerTransform.forward.x, ownerRoundPlayer.PlayerTransform.forward.y, ownerRoundPlayer.PlayerTransform.forward.z);
-                    walkTo(slave.playerId, new DemoTransform() { position = targetPosition, forward = targetForward });
+                    walkTo(slave, new DemoTransform() { position = targetPosition, forward = targetForward });
                 }
-                if (!__instance.updateInput) { return true; }
+                if (!carbonPlayer.updateInput) { return false; }
 
                 Vector2 inputAxis;
                 float y;
                 Queue<DemoTransform> targetQueue;
                 OwnerPacketToServer ownerPacketToServer = ComponentReferenceManager.genericObjectPools.ownerPacketToServer.Obtain();
                 byte spawnInstance = player.PlayerBase.PlayerStartData.SpawnInstance;
-
+                EnumCollection<PlayerActions> enumCollection = ComponentReferenceManager.genericObjectPools.playerActionsEnumCollection.Obtain();
                 //获取slave移动队列
-                if (slavePlayerTargetTransforms.ContainsKey(slaveId)) { targetQueue = slavePlayerTargetTransforms[slaveId]; }
-                else { return true; }
+                targetQueue = slave.transformQueue;
+
                 //移动处理 (update slave movement)
 
                 DemoTransform target = targetQueue.Count != 0 ? targetQueue.Peek() : null;
 
-                if (target == null) {  return true; }
-                else
+                if (target != null)
                 {
                     float rand2 = UnityEngine.Random.Range(0f, 1f);
                     if (rand2 > 0.7 && target.lastPosition != Vector3.zero)
@@ -732,12 +724,11 @@ namespace DemoMod
                         }
                         inputAxis = Vector2.zero;
                         slave.currentAimForward = target.forward;
-                        if (!target.isCollistion) { if (target.demoAction != null) { target.demoAction.isComplete = true; } stopSlaveMovement_clearTargetTransform(slaveId); }
+                        if (!target.isCollistion) { if (target.demoAction != null) { target.demoAction.isComplete = true; } stopSlaveMovement_clearTargetTransform(slave); }
                     }
                     if (distance > 0.2 && !slave.isReloading)
                     {
                         inputAxis = new Vector2(0, 1);
-                        EnumCollection<PlayerActions> enumCollection = ComponentReferenceManager.genericObjectPools.playerActionsEnumCollection.Obtain();
                         enumCollection.Add((int)PlayerActions.Run);
                         ownerPacketToServer.ActionCollection = enumCollection;
                     }
@@ -756,42 +747,94 @@ namespace DemoMod
                         inputAxis = Vector2.zero;
                         //Debug.Log(string.Format("demo:{3} reach position: {0} forward: {1} isCollision: {2}", target.position, target.forward, target.isCollistion, carbonPlayer.playerID));
                         slave.currentAimForward = target.forward;
-                        if (!target.isCollistion) { if (target.demoAction != null) { target.demoAction.isComplete = true; } stopSlaveMovement_clearTargetTransform(slaveId);  }
+                        if (!target.isCollistion) { if (target.demoAction != null) { target.demoAction.isComplete = true; } stopSlaveMovement_clearTargetTransform(slave);  }
 
                     }
                 }
-
+                else
+                {
+                    inputAxis = Vector2.zero;
+                }
                 //Original codes
-                y = slaveRoundPlayer.PlayerObject.transform.rotation.eulerAngles.y;
+                if (IsPlayerActionMeleeHold(playerAction))
+                {
+                    player.PlayerBase.Yaw = Mathf.Rad2Deg * Mathf.Atan(player.PlayerTransform.forward.x / player.PlayerTransform.forward.z);
+                    player.PlayerTransform.rotation = Quaternion.Euler(new Vector3(0, player.PlayerBase.Yaw, 0));
+                    y = player.PlayerBase.Yaw;
+                    Debug.Log(string.Format("Demo: melee hold forward {0} rotation e {1}  yaw {2}", slave.roundPlayer.PlayerTransform.forward, slave.roundPlayer.PlayerTransform.rotation.eulerAngles, slave.roundPlayer.PlayerBase.Yaw));
+
+                }
+                else
+                {
+                    y = slaveRoundPlayer.PlayerTransform.rotation.eulerAngles.y;
+                }
                 ownerPacketToServer.Instance = new byte?(spawnInstance);
                 ownerPacketToServer.OwnerInputAxis = new Vector2?(inputAxis);
                 ownerPacketToServer.OwnerRotationY = new float?(y);
                 ownerPacketToServer.Swimming = player.PlayerBase.State.isSwimming;
+                ownerPacketToServer.OwnerPitch = new float?(player.PlayerBase.Pitch);
+                ServerPlayerBase serverPlayerBase = player.ServerPlayerBase;
+                Transform virutalCameraTransform = serverPlayerBase.VirutalCameraTransform;
+                Vector3 zero = Vector3.zero;
+                Vector3 zero2 = Vector3.zero;
+                if (serverPlayerBase.Pitch > 0f)
+                {
+                    float t = Mathf.InverseLerp(0f, 2f, serverPlayerBase.Pitch);
+                    zero2.x = Mathf.Lerp(0f, -60f, t);
+                    zero.y = Mathf.Lerp(1.56f, 1.5f, t);
+                    zero.z = Mathf.Lerp(0.17f, -0.33f, t);
+                }
+                else
+                {
+                    float t2 = Mathf.InverseLerp(-1.5f, 0f, serverPlayerBase.Pitch);
+                    zero2.x = Mathf.Lerp(60f, 0f, t2);
+                    zero.y = Mathf.Lerp(1.2f, 1.56f, t2);
+                    zero.z = Mathf.Lerp(0.57f, 0.17f, t2);
+                }
+                zero2.y = serverPlayerBase.Yaw;
+                virutalCameraTransform.localPosition = zero;
+                virutalCameraTransform.localEulerAngles = zero2;
+
+                if (playerAction != PlayerActions.None)
+                {
+                    enumCollection.Add((int)playerAction);
+                }
                 if (playerAction == PlayerActions.FireFirearm)
                 {
-                    EnumCollection<PlayerActions> enumCollection = ComponentReferenceManager.genericObjectPools.playerActionsEnumCollection.Obtain();
-                    enumCollection.Add((int)playerAction);
+                        
                     double networkTime = uLinkNetworkConnectionsCollection.networkTime;
                     ownerPacketToServer.CameraForward = new Vector3?(slave.currentAimForward);
-                    ownerPacketToServer.CameraPosition = new Vector3?(player.uLinkStrictPlatformerCreator.rewinderHitboxGroup.BodyHitboxes[1].Transform.position);
+                    ownerPacketToServer.CameraPosition = new Vector3(slaveRoundPlayer.PlayerTransform.position.x, slaveRoundPlayer.PlayerTransform.position.y+1.3f, slaveRoundPlayer.PlayerTransform.position.z);
                     ownerPacketToServer.PacketTimestamp = new double?(networkTime);
-                    ownerPacketToServer.ActionCollection = enumCollection;
+                }
+                else if (IsPlayerActionMeleeBlock(playerAction))
+                {
+                    enumCollection.Add(15);
+                    enumCollection.Add(24);
+                }
+                else if (IsPlayerActionMeleeHold(playerAction))
+                {
+                    enumCollection.Add(15);
+                    enumCollection.Add(17);
 
                 }
-                player.uLinkStrictPlatformerCreator.HandleOwnerPacketToServer(ownerPacketToServer);
-                if ((meleeStrike != MeleeStrikeType.None))
+                else if (playerAction == PlayerActions.StartAimingFirearm)
                 {
-                    player.PlayerTransform.rotation = Quaternion.Euler(new Vector3(0, 90, 0));
-                    PlayerMeleeStrikePacket playerMeleeStrikePacket = ComponentReferenceManager.genericObjectPools.playerMeleeStrikePacket.Obtain();
-                    playerMeleeStrikePacket.AttackTime = uLinkNetworkConnectionsCollection.networkTime;
-                    playerMeleeStrikePacket.AttackingPlayerID = carbonPlayer.playerID;
-                    playerMeleeStrikePacket.AttackingPlayerMeleeWeaponDamageDealerTypeID = player.WeaponHolder.ActiveWeaponDetails.damageDealerTypeID;
-                    playerMeleeStrikePacket.MeleeStrikeType = meleeStrike;
-                    Debug.Log(string.Format("demo: melee: {0}", meleeStrike.ToString()));
-                    ___meleeStrikeManager.MeleeAttackStrike(playerMeleeStrikePacket);
+                    enumCollection.Add(16);
                 }
-            
-            }catch(Exception ex)
+                else if (playerAction == PlayerActions.ExecuteSecondaryAttack)
+                {
+                    enumCollection.Add(15);
+                }
+                if(playerAction == PlayerActions.ExecuteMeleeWeaponStrike)
+                {
+                    Debug.Log(string.Format("Demo: melee strike forward {0} rotation e {1}  yaw {2}", slave.roundPlayer.PlayerTransform.forward, slave.roundPlayer.PlayerTransform.rotation.eulerAngles, slave.roundPlayer.PlayerBase.Yaw));
+                }
+                ownerPacketToServer.ActionCollection = enumCollection;
+                player.uLinkStrictPlatformerCreator.HandleOwnerPacketToServer(ownerPacketToServer);
+
+            }
+            catch(Exception ex)
             {
                 Debug.Log("Demo UpdateCarbonPlayerInput exception: " + ex.ToString());
                 return false;
@@ -800,19 +843,25 @@ namespace DemoMod
 
         }
 
-        private static void stopSlaveMovement_clearTargetTransform(int slaveId)
+        private static bool IsPlayerActionMeleeBlock(PlayerActions pQueuedPlayerAction)
         {
-            if (slavePlayerTargetTransforms.ContainsKey(slaveId))
-            {
-                slavePlayerTargetTransforms[slaveId].Clear();
-            }
+            return pQueuedPlayerAction == PlayerActions.MeleeBlockHigh || pQueuedPlayerAction == PlayerActions.MeleeBlockLow || pQueuedPlayerAction == PlayerActions.MeleeBlockRight || pQueuedPlayerAction == PlayerActions.MeleeBlockLeft;
+        }
+        private static bool IsPlayerActionMeleeHold(PlayerActions pQueuedPlayerAction)
+        {
+            return pQueuedPlayerAction == PlayerActions.MeleeStrikeHigh || pQueuedPlayerAction == PlayerActions.MeleeStrikeLow || pQueuedPlayerAction == PlayerActions.MeleeStrikeRight || pQueuedPlayerAction == PlayerActions.MeleeStrikeLeft;
+        }
+
+        private static void stopSlaveMovement_clearTargetTransform(SlavePlayer slave)
+        {
+            slave.transformQueue.Clear();
         }
 
         public static void rtm_Update_post()
         {
             try
             {
-                updateSlaveYRotation();
+                //updateSlaveYRotation();
             }catch(Exception ex)
             {
                 Debug.Log("demo exception at rtm_Update_post: " + ex.ToString());
@@ -881,7 +930,7 @@ namespace DemoMod
                             roundPlayer.PlayerBase.Pitch = playerFiring.playerBase.Pitch;
                         }
                     }
-                    action(playerId, "all", "fire");
+                    action_g(playerId, "all", "fire");
 
                 }
 
@@ -906,7 +955,7 @@ namespace DemoMod
                 op.ActionCollection.CloneInto(enumCollection);
                 if (enumCollection.Has((int)PlayerActions.StartReloadFirearm))
                 {
-                    action(playerId, "all", "reload");
+                    action_g(playerId, "all", "reload");
                 }
             }
         }
@@ -928,13 +977,13 @@ namespace DemoMod
             }
             else if(officerOrderType == OfficerOrderType.Fire)
             {
-                action(officerId, "all", "fire");
+                action_g(officerId, "all", "fire");
             }else if (officerOrderType == OfficerOrderType.CeaseFire)
             {
-                action(officerId, "all", PlayerActions.StopAimingFirearm.ToString());
+                action_g(officerId, "all", PlayerActions.StopAimingFirearm.ToString());
             }else if (officerOrderType == OfficerOrderType.MakeReady)
             {
-                action(officerId, "all", PlayerActions.StartAimingFirearm.ToString());
+                action_g(officerId, "all", PlayerActions.StartAimingFirearm.ToString());
             }
 
 
@@ -945,73 +994,65 @@ namespace DemoMod
             {
                 if( phrase == CharacterVoicePhrase.ReadyGuns)
                 {
-                    action(playerID, "all", "reload");
-                    serverCarbonPlayersManager.StartCoroutine(waitAction(3 ,playerID, PlayerActions.StartAimingFirearm.ToString()));
+                    action_g(playerID, "all", "switchWeapon", additionalArgs: "");
                 }
                 if(phrase == CharacterVoicePhrase.TakeAim || phrase == CharacterVoicePhrase.PresentArms )
                 {
-                    action(playerID, "all", PlayerActions.DisableCombatStance.ToString());
-                    action(playerID, "all", PlayerActions.StartAimingFirearm.ToString());
+                    action_g(playerID, "all", PlayerActions.DisableCombatStance.ToString());
+                    action_g(playerID, "all", PlayerActions.StartAimingFirearm.ToString());
                 }
                 else if( phrase == CharacterVoicePhrase.PrimeLoad )
                 {
-                    action(playerID, "all", "reload");
+                    action_g(playerID, "all", "reload");
                 }
                 else if(phrase == CharacterVoicePhrase.Fire)
                 {
-                    action(playerID, "all", "fire");
+                    action_g(playerID, "all", "fire");
                 }
                 else if( phrase == CharacterVoicePhrase.ShoulderArms)
                 {
-                    action(playerID, "all", "onground");
+                    action_g(playerID, "all", "onground");
                 }
                 else if(phrase == CharacterVoicePhrase.StandGround )
                 {
-                    action(playerID, "all", "onground2");
+                    action_g(playerID, "all", "onground2");
                 }
                 else if(phrase == CharacterVoicePhrase.Insult)
                 {
-                    action(playerID, "all", "ongroundOld");
+                    action_g(playerID, "all", "ongroundOld");
                 }
                 else if(phrase == CharacterVoicePhrase.CeaseFire)
                 {
-                    action(playerID, "all", PlayerActions.StopAimingFirearm.ToString());
-                    action(playerID, "all", "stopFireAtWill");
+                    action_g(playerID, "all", PlayerActions.StopAimingFirearm.ToString());
+                    action_g(playerID, "all", "stopFireAtWill");
                 }
                 else if(phrase == CharacterVoicePhrase.PatrioticCheer)
                 {
-                    action(playerID, "all", "follow");
+                    action_g(playerID, "all", "follow");
                 }
                 else if(phrase == CharacterVoicePhrase.RemoveBayonet)
                 {
-                    action(playerID, "all", PlayerActions.StartBayonetDetach.ToString());
+                    action_g(playerID, "all", PlayerActions.StartBayonetDetach.ToString());
                     serverCarbonPlayersManager.StartCoroutine(waitAction(4, playerID, PlayerActions.FinishBayonetDetach.ToString()));
                 }
                 else if(phrase == CharacterVoicePhrase.FixBayonet)
                 {
-                    action(playerID, "all", PlayerActions.StartBayonetAttach.ToString());
+                    action_g(playerID, "all", PlayerActions.StartBayonetAttach.ToString());
                     serverCarbonPlayersManager.StartCoroutine(waitAction(4, playerID, PlayerActions.FinishBayonetAttach.ToString()));
                 }
                 else if(phrase == CharacterVoicePhrase.AimHigher)
                 {
-                    action(playerID, "all", "switchAimMode");
+                    action_g(playerID, "all", "switchAimMode");
                 }else if( phrase == CharacterVoicePhrase.SectionsFire)
                 {
-                    action(playerID, "all", "fire");
+                    action_g(playerID, "all", "fire");
                 }else if(phrase == CharacterVoicePhrase.Warcry || phrase == CharacterVoicePhrase.StayCalm)
                 {
-                    action(playerID, "all", "inlineFollow");
+                    action_g(playerID, "all", "inlineFollow");
                 }else if(phrase == CharacterVoicePhrase.FireAtWill)
                 {
-                    action(playerID, "all", "startFireAtWill");
-                }else if(phrase == CharacterVoicePhrase.Charge)
-                {
-                    action(playerID, "all", "startCharge");
-                }else if(phrase == CharacterVoicePhrase.Mutiny)
-                {
-                    action(playerID, "all", "stopCharge");
+                    action_g(playerID, "all", "startFireAtWill");
                 }
-
 
 
             }
@@ -1039,7 +1080,6 @@ namespace DemoMod
             }
             slaveOwnerInfantryLine = new Dictionary<int, DemoInfantryLine>();
             slavePlayerDictionary = new Dictionary<int, SlavePlayer>();
-            slavePlayerTargetTransforms = new Dictionary<int, Queue<DemoTransform>>();
             faceDirections = new List<ForceFacingDirection>();
 
             currentRequestOwner = -1;
@@ -1074,48 +1114,6 @@ namespace DemoMod
             }
         }
 
-
-        public static string addBots(int ownerId, int count, FactionCountry factionCountry, PlayerClass playerClass)
-        {
-            //初始化
-            if (serverCarbonPlayersManager == null)
-            {
-                initComponent();
-            }
-            if(ownerId <1 || count < 1)
-            {
-                return "Invalid arguments";
-            }
-            var spawnLock = new object();
-            while (inuse) { return "try Again!"; }
-            inuse = true;
-            {
-                if(currentRequestOwner == -1)
-                {
-                    currentRequestOwner = ownerId;
-                }
-                else
-                {
-                    inuse = false;
-                    return "Please try again!";
-                }
-                bool ownerExists = !initSlaveOwner(ownerId);
-                currentSpawnIndex = ownerExists ? slaveOwnerDictionary[ownerId].Count: 0;
-                serverCarbonPlayersManager.forceInputAxis = true;
-                serverCarbonPlayersManager.forceInputRotation = true;
-                serverCarbonPlayersManager.IgnoreAutoControls(true);
-                for (int i = 0; i < count; ++i)
-                {
-                    serverCarbonPlayersManager.AddCarbonPlayers(factionCountry, playerClass);
-                }
-                currentRequestOwner = -1;
-                inuse = false;
-            }
-            serverCarbonPlayersManager.StartCoroutine(waitFormLine(1f, ownerId));
-            return string.Format("success add {0} bots of {1} to {2} .", count, factionCountry + " " + playerClass, ownerId);
-
-        }
-
         public static string addBots(int ownerId, List<DemoSpawnStruct> spawns)
         {
             if (serverCarbonPlayersManager == null)
@@ -1142,12 +1140,12 @@ namespace DemoMod
                 currentSpawns = spawns;
                 bool ownerExists = !initSlaveOwner(ownerId);
                 currentSpawnIndex = ownerExists ? slaveOwnerDictionary[ownerId].Count : 0;
-                serverCarbonPlayersManager.forceInputAxis = true;
-                serverCarbonPlayersManager.forceInputRotation = true;
+                serverCarbonPlayersManager.SetForceInputAxis(true, -1);
+                serverCarbonPlayersManager.SetForceInputRotation(true, -1);
                 serverCarbonPlayersManager.IgnoreAutoControls(true);
                 for (int i = 0; i < spawns.Count; ++i)
                 {
-                    serverCarbonPlayersManager.AddCarbonPlayers(spawns[i].factionCountry, spawns[i].playerClass);
+                    serverCarbonPlayersManager.AddCarbonPlayers(spawns[i].factionCountry, spawns[i].playerClass, spawns[i].namePrefix +" "+ i.ToString(), "", uniformId: spawns[i].uniformId);
                 }
                 currentRequestOwner = -1;
                 inuse = false;
@@ -1181,7 +1179,6 @@ namespace DemoMod
 
                     EnhancedRC.networkView.RPC<int>("RemotePlayerLeftRound", uLinkNetworkConnectionsCollection.connections, slaveId);
                     slavePlayerDictionary.Remove(slaveId);
-                    slavePlayerTargetTransforms.Remove(slaveId);
                     if (carbonPlayers != null  && carbonPlayerIDs != null) //Should not be null 
                     {
                         carbonPlayerIDs.Remove(slaveId);
@@ -1299,116 +1296,100 @@ namespace DemoMod
             return "success!";
         }
 
-        public static string action(int ownerId, string groupName, string action, string additionalArgs = "BearingFlag", DemoAction demoAction = null)
+        //Simple controls without enqueue
+        public static string action_g(int ownerId, string groupName, string action, string additionalArgs = "")
         {
             RoundPlayer ownerRoundPlayer;
-            List<SlavePlayer> slaves = new List<SlavePlayer>();
-            PlayerActions targetAction = PlayerActions.None;
+            PlayerActions targetAction;
+            List<SlavePlayer> slaves;
+            List<SlavePlayer> allSlaves;
             List<SlavePlayer> problematicSpawns = new List<SlavePlayer>();
-           
-
+            int tmp_slaveId;
 
             //检查owner是否初始化
-            if (!slaveOwnerDictionary.ContainsKey(ownerId))
-            {
-                return "error: no slave.";
-            }
-            List<SlavePlayer> allSlaves = slaveOwnerDictionary[ownerId].ToList();
+            if (!slaveOwnerDictionary.ContainsKey(ownerId)) { return "action_g: no such owner."; }
+            allSlaves = slaveOwnerDictionary[ownerId].ToList();
+            
             //初始化 目标
-            int tmp1;
             if (groupName == "all")
             {
-                foreach(var s in allSlaves)
-                {
-                    if(s.isAlive)
-                    {
-                        slaves.Add(s);
-                    }
-                    //slaves.Add(s);
-                }
+                slaves = allSlaves.FindAll(e => e.isAlive);
             }
-            else if (!int.TryParse(groupName, out tmp1))
+            else if(int.TryParse(groupName, out tmp_slaveId))
             {
-                slaves = new List<SlavePlayer>();
-                foreach(var s in allSlaves)
-                {
-                    if(s.group == groupName)
-                    {
-                        slaves.Add(s);
-                    }
-                }
-
+                slaves = allSlaves.FindAll(e => e.playerId == tmp_slaveId);
             }
             else
             {
-                slaves = new List<SlavePlayer>();
-                try
-                {
-                    slaves.Add(slavePlayerDictionary[int.Parse(groupName)]);
-                }catch(System.Collections.Generic.KeyNotFoundException)
-                {
-                    return "";
-                }
-                catch (Exception ex)
-                {
-                    Debug.Log(string.Format("demo: Exception in EnhancedBots.action {0} {1}" , action,ex.ToString()));
-                    return "demo: error";
-                }
-            }
-            if (slaves.Count == 0)
-            {
-                return string.Format("demo: no alive slave!");
+                slaves = allSlaves.FindAll(e => e.group == groupName);
             }
 
-            //处理自定义命令
-            switch (action)
+            if (slaves.Count == 0)
             {
-                case "fire":
+                return string.Format("action_g: no alive slave.");
+            }
+            foreach (SlavePlayer slave in slaves)
+            {
+                CarbonPlayerRepresentation carbonPlayerRepresentation;
+                RoundPlayer serverRoundPlayer;
+                try
+                {
+                    carbonPlayerRepresentation =  slave.carbonPlayerRepresentation == null ? slave.carbonPlayerRepresentation = carbonPlayers[slave.playerId] : slave.carbonPlayerRepresentation;
+                    serverRoundPlayer = slave.roundPlayer == null ? slave.roundPlayer = serverRoundPlayerManager.ResolveServerRoundPlayer(slave.playerId) : slave.roundPlayer;
+                    if (carbonPlayerRepresentation == null || serverRoundPlayer == null)
                     {
-                        foreach(SlavePlayer slave in slaves)
-                        {
-                            if (!carbonPlayers.ContainsKey(slave.playerId)) {problematicSpawns.Add(slave); continue; }
-                            action_n(slave, "fire");
-                        }
-                        return string.Format("Bot {0} execute {1} requested by {2}", groupName, "fire", ownerId);
+                        continue;
                     }
-                case "reload":
-                    {
-                        foreach (SlavePlayer slave in slaves)
+                }
+                catch
+                {
+                    problematicSpawns.Add(slave);
+                    continue;
+                }
+
+                //Complex action
+                switch (action)
+                {
+                    case "fire":
                         {
-                            if (!carbonPlayers.ContainsKey(slave.playerId)) { problematicSpawns.Add(slave); continue; }
-                            action_n(slave, "reload");
+                            if (!slave.isAiming)
+                            {
+                                ref_UpdateCarbonPlayerInput.Invoke(serverCarbonPlayersManager, new object[] { carbonPlayerRepresentation, serverRoundPlayer, PlayerActions.StartAimingFirearm });
+                                slave.isAiming = true;
+                                serverCarbonPlayersManager.StartCoroutine(waitAction(0.7f + (slave.rand * 0.1f), ownerId, PlayerActions.FireFirearm.ToString(), slave.playerId));
+                                serverCarbonPlayersManager.StartCoroutine(waitAction(1.2f + (slave.rand * 0.1f), ownerId, PlayerActions.StopAimingFirearm.ToString(), slave.playerId));
+                            }
+                            else
+                            {
+                                ref_UpdateCarbonPlayerInput.Invoke(serverCarbonPlayersManager, new object[] { carbonPlayerRepresentation, serverRoundPlayer, PlayerActions.FireFirearm });
+                                serverCarbonPlayersManager.StartCoroutine(waitAction(0.5f, ownerId, PlayerActions.StopAimingFirearm.ToString(), slave.playerId));
+                                slave.hasAmmo = false;
+                            }
+
+                            continue;
                         }
-                        return string.Format("Bot {0} execute {1} requested by {2}", groupName, "reload", ownerId);  
-                    }
-                case "aim":
-                    {
-                        foreach (SlavePlayer slave in slaves)
+                    case "reload":
                         {
-                            if (!carbonPlayers.ContainsKey(slave.playerId)) { problematicSpawns.Add(slave); continue; }
-                            action_n(slave, "aim");
+                            action_s(slave, "reload");
+                            continue;
                         }
-                        return string.Format("Bot {0} execute {1} requested by {2}", groupName, "aim", ownerId);
-                    }
-                case "switchAimMode":
-                    {
-                        foreach (SlavePlayer slave in slaves)
+                    case "aim":
+                        {
+                            ref_UpdateCarbonPlayerInput.Invoke(serverCarbonPlayersManager, new object[] { carbonPlayerRepresentation, serverRoundPlayer, PlayerActions.StartAimingFirearm });
+                            slave.isAiming = true;
+                            continue;
+                        }
+                    case "switchAimMode":
                         {
                             slave.isAimingExact = !slave.isAimingExact;
+                            continue;
                         }
-                        return string.Format("Bot {0} execute {1} requested by {2}", groupName, "switchAimMode", ownerId);
-                    }
-                case "ongroundOld":
-                    {
-                        slaveOwnerInfantryLine.Remove(ownerId);
-                        EnhancedBots.action(ownerId, "all", PlayerActions.StopCrouching.ToString());
-                        foreach (SlavePlayer slave in slaves)
+                    case "ongroundOld":
                         {
+                            slaveOwnerInfantryLine.Remove(ownerId);
+                            EnhancedBots.action_g(ownerId, "all", PlayerActions.StopCrouching.ToString());
                             slave.follow = false;
-                            if (slavePlayerTargetTransforms.ContainsKey(slave.playerId))
-                            {
-                                slavePlayerTargetTransforms[slave.playerId].Clear();
-                            }
+                            stopSlaveMovement_clearTargetTransform(slave);
                             ownerRoundPlayer = serverRoundPlayerManager.ResolveRoundPlayer(ownerId);
                             Vector3 ownerPosition = new Vector3(ownerRoundPlayer.PlayerTransform.position.x, ownerRoundPlayer.PlayerTransform.position.y, ownerRoundPlayer.PlayerTransform.position.z);
                             Vector3 ownerRight = ownerRoundPlayer.PlayerTransform.right * 0.65f;
@@ -1416,195 +1397,115 @@ namespace DemoMod
                             Vector3 targetPosition = ownerPosition + (ownerRight * (idx < (slaves.Count) / 2 ? idx - (slaves.Count / 2) : 1 + idx - (slaves.Count / 2)));
                             Vector3 targetForward = new Vector3(ownerRoundPlayer.PlayerTransform.forward.x, ownerRoundPlayer.PlayerTransform.forward.y, ownerRoundPlayer.PlayerTransform.forward.z);
 
-                            walkTo(slave.playerId, new DemoTransform() { position = targetPosition, forward = targetForward });
+                            walkTo(slave, new DemoTransform() { position = targetPosition, forward = targetForward });
+                            continue;
                         }
-                        return string.Format("Bot {0} execute onTheGround requested by {1}", groupName, ownerId);
-                    }
-                case "follow":
-                    {
-                        slaveOwnerInfantryLine.Remove(ownerId);
-                        EnhancedBots.action(ownerId, "all", PlayerActions.StopCrouching.ToString());
-                        foreach (SlavePlayer slave in slaves)
+                    case "follow":
                         {
-                            if (slavePlayerTargetTransforms.ContainsKey(slave.playerId))
-                            {
-                                slavePlayerTargetTransforms[slave.playerId].Clear();
-                            }
+                            slaveOwnerInfantryLine.Remove(ownerId);
+                            EnhancedBots.action_g(ownerId, "all", PlayerActions.StopCrouching.ToString());
+                            stopSlaveMovement_clearTargetTransform(slave);
                             slave.follow = !slave.follow;
+                            continue;
                         }
-                        return string.Format("Bot {0} execute follow requested by {1}", groupName,  ownerId);
-                    }
-                case "crouch":
-                    { return ""; }
-                case "onground":
-                    {
-                        EnhancedBots.action(ownerId, "all", PlayerActions.StopCrouching.ToString());
-                        DemoInfantryLine line = new DemoInfantryLine(_isDoubleRow: false, _oneRow: slaves.Count, _ownerRoundPlayer: serverRoundPlayerManager.ResolveRoundPlayer(ownerId));
-                        slaveOwnerInfantryLine[ownerId] = line;
-                        return "make single line";
-                    }
-                case "onground2":
-                    {
-                        EnhancedBots.action(ownerId, "all", PlayerActions.StopCrouching.ToString());
-                        List<SlavePlayer> aliveSlavePlayers = new List<SlavePlayer>();
-                        foreach(var s in slaves)
+                    case "onground":
                         {
-                            if (s.isAlive)
-                                aliveSlavePlayers.Add(s);
+                            EnhancedBots.action_g(ownerId, "all", PlayerActions.StopCrouching.ToString());
+                            DemoInfantryLine line = new DemoInfantryLine(_isDoubleRow: false, _oneRow: slaves.Count, _ownerRoundPlayer: serverRoundPlayerManager.ResolveRoundPlayer(ownerId));
+                            slaveOwnerInfantryLine[ownerId] = line;
+                            return "make one rank line";
                         }
-                        DemoInfantryLine line = new DemoInfantryLine(_isDoubleRow: true, _oneRow: aliveSlavePlayers.Count %2 ==0 ? aliveSlavePlayers.Count/2: aliveSlavePlayers.Count/2 +1, _ownerRoundPlayer: serverRoundPlayerManager.ResolveRoundPlayer(ownerId));
-                        slaveOwnerInfantryLine[ownerId] = line;
-                        return "make double line";
-                    }
-                case "forward":
-                    {
-                        slaveOwnerInfantryLine.Remove(ownerId);
-                        EnhancedBots.action(ownerId, "all", PlayerActions.StopCrouching.ToString());
-                        foreach (SlavePlayer slave in slaves)
+                    case "onground2":
                         {
-                            slave.follow = false;
-                            if (slavePlayerTargetTransforms.ContainsKey(slave.playerId))
-                            {
-                                slavePlayerTargetTransforms[slave.playerId].Clear();
-                            }
-                            var slaveRp = serverRoundPlayerManager.ResolveRoundPlayer(slave.playerId);
-                            Vector3 slavePosition = new Vector3(slaveRp.PlayerTransform.position.x, slaveRp.PlayerTransform.position.y, slaveRp.PlayerTransform.position.z);
-                            var temp = slaveRp.PlayerTransform.forward;
-                            Vector3 slaveForward = new Vector3(temp.x , temp.y , temp.z);
-                            slaveForward.Normalize();
-                            int idx = slave.index;
-                            Vector3 targetPosition = slavePosition + 1.2f*slaveForward;
-                            Vector3 targetForward = slaveForward ;
+                            EnhancedBots.action_g(ownerId, "all", PlayerActions.StopCrouching.ToString());
+                            List<SlavePlayer> aliveSlavePlayers = slaves;
 
-                            walkTo(slave.playerId, new DemoTransform() { position = targetPosition, forward = targetForward });
+                            DemoInfantryLine line = new DemoInfantryLine(_isDoubleRow: true, _oneRow: aliveSlavePlayers.Count % 2 == 0 ? aliveSlavePlayers.Count / 2 : aliveSlavePlayers.Count / 2 + 1, _ownerRoundPlayer: serverRoundPlayerManager.ResolveRoundPlayer(ownerId));
+                            slaveOwnerInfantryLine[ownerId] = line;
+                            return "make double rank line";
                         }
-                        return string.Format("Bot {0} execute onTheGround requested by {1}", groupName, ownerId);
-                    }
-                case "inlineFollow":
-                    {
-                        if (!slaveOwnerInfantryLine.ContainsKey(ownerId))
+                    case "inlineFollow":
                         {
-                            return "make a line first";
+                            if (!slaveOwnerInfantryLine.ContainsKey(ownerId))
+                            {
+                                return "make a line first";
+                            }
+                            EnhancedBots.action_g(ownerId, "all", PlayerActions.StopCrouching.ToString());
+                            bool flag = slaveOwnerInfantryLine[ownerId].doUpdate = !slaveOwnerInfantryLine[ownerId].doUpdate;
+                            bool flag2 = slaveOwnerInfantryLine[ownerId].isDoubleRow;
+                            if (!flag && flag2)
+                            {
+                                EnhancedBots.action_g(ownerId, "all", "l1crouch");
+                            }
+                            return "toggle inline follow";
                         }
-                        EnhancedBots.action(ownerId, "all", PlayerActions.StopCrouching.ToString());
-                        bool flag = slaveOwnerInfantryLine[ownerId].doUpdate = !slaveOwnerInfantryLine[ownerId].doUpdate;
-                        bool flag2 = slaveOwnerInfantryLine[ownerId].isDoubleRow;
-                        if (!flag && flag2)
+                    case "l1crouch":
                         {
-                            EnhancedBots.action(ownerId, "all", "l1crouch");
+                            if (!slaveOwnerInfantryLine.ContainsKey(ownerId))
+                            {
+                                return "make a line first";
+                            }
+                            DemoInfantryLine line = slaveOwnerInfantryLine[ownerId];
+                            LinkedList<SlavePlayer> l1 = line.lines[1];
+                            foreach (var s in l1)
+                            {
+                                EnhancedBots.action_g(ownerId, s.playerId.ToString(), PlayerActions.StartCrouching.ToString());
+                            }
+                            return "ok";
                         }
-                        return "inline follow";
-                    }
-                case "l1crouch":
-                    {
-                        if (!slaveOwnerInfantryLine.ContainsKey(ownerId))
-                        {
-                            return "make a line first";
-                        }
-                        DemoInfantryLine line = slaveOwnerInfantryLine[ownerId];
-                        LinkedList<SlavePlayer> l1 = line.lines[1];
-                        foreach(var slave in l1)
-                        {
-                            EnhancedBots.action(ownerId, slave.playerId.ToString(), PlayerActions.StartCrouching.ToString());
-                        }
-                        return "ok";
-                    }
-                case "switchWeapon":
-                    {
-                        foreach (var s in slaves)
+                    case "switchWeapon":
                         {
                             WeaponType t = WeaponType.Musket_SeaServiceBrownBess;
-                            HomelessMethods.TryParseEnum<WeaponType>(additionalArgs, out t);
-                            serverWeaponHolderManager.BroadcastSwitchWeapon(s.playerId, t);
-                        }
-                        return "Switch weapon ok.";
-                    }
-                case "meleeStrike":
-                    {
-                        MeleeStrikeType mType = MeleeStrikeType.MeleeStrikeHigh;
-                        PlayerActions mAction = PlayerActions.ExecuteMeleeWeaponStrike;
-                        HomelessMethods.TryParseEnum<MeleeStrikeType>(additionalArgs, out mType);
-                        Debug.Log(string.Format("demo:meleeStrike {0}", mType));
-                        foreach (SlavePlayer slave in slaves)
-                        {
-                            if (!carbonPlayers.ContainsKey(slave.playerId)) { problematicSpawns.Add(slave); continue; }
-                            CarbonPlayerRepresentation carbonPlayerRepresentation = carbonPlayers[slave.playerId];
-                            ServerRoundPlayer serverRoundPlayer = serverRoundPlayerManager.ResolveServerRoundPlayer(slave.playerId);
-                            if (serverRoundPlayer == null) { continue; }
-                            ref_UpdateCarbonPlayerInput.Invoke(serverCarbonPlayersManager, new object[] { carbonPlayerRepresentation, serverRoundPlayer, mAction, mType });
-                            //Broadcast melee strike
-                            Weapon activeWeaponDetails = serverRoundPlayer.CreatorWeaponHolder.ActiveWeaponDetails;
-                            PlayerMeleeStrikePacket playerMeleeStrikePacket = ComponentReferenceManager.genericObjectPools.playerMeleeStrikePacket.Obtain();
-                            playerMeleeStrikePacket.AttackingPlayerID = slave.playerId;
-                            playerMeleeStrikePacket.AttackTime = uLinkNetworkConnectionsCollection.networkTime + 0.03;
-                            playerMeleeStrikePacket.AttackingPlayerMeleeWeaponDamageDealerTypeID = activeWeaponDetails.GetDamageDealerTypeID(AttackType.MeleeAttack);
-                            playerMeleeStrikePacket.MeleeStrikeType = mType;
-                            EnhancedRC.networkView.RPC<PlayerMeleeStrikePacket>("MeleeAttackStrike", uLinkNetworkConnectionsCollection.connections, playerMeleeStrikePacket);
-                            ComponentReferenceManager.genericObjectPools.playerMeleeStrikePacket.Release(playerMeleeStrikePacket);
-                        }
-                        return string.Format("demo:meleeStrike {0}", mType);
-                    }
-                case "randomAim":
-                    {
-                        foreach (var slave in slaves)
-                        {
-                            action_n(slave, "randomAim", additionalArgs : additionalArgs);
-                        }
+                            if(additionalArgs != "")
+                            {
+                                HomelessMethods.TryParseEnum<WeaponType>(additionalArgs, out t);
+                                serverWeaponHolderManager.BroadcastSwitchWeapon(slave.playerId, t);
+                            }
+                            else
+                            {
+                                Weapon weaponExcept = serverRoundPlayer.WeaponHolder.AvailableWeapons.GetWeaponExcept(WeaponType.Unarmed);
+                                serverWeaponHolderManager.BroadcastSwitchWeapon(slave.playerId, weaponExcept.weaponType);
+                                Debug.Log("Demo: switch " + weaponExcept.weaponType);
+                            }
 
-                        return "randomAim queued";
-                    }
-                case "startFireAtWill":
-                    {
-                        foreach( SlavePlayer slave in slaves)
+
+                            serverWeaponHolderManager.BroadcastSwitchWeapon(slave.playerId, t);
+                            continue;
+                        }
+                    case "randomAim":
                         {
-                            action_n(slave, "startFireAtWill");
+                            action_s(slave, "randomAim", additionalArgs: additionalArgs);
+                            continue;
+                        }
+                    case "startFireAtWill":
+                        {
+                            action_s(slave, "startFireAtWill");
                             slave.isFiringAtWill = true;
+
+                            continue;
                         }
-                        return string.Format("demo: isFiringAtWill set to  {0}", true);
-                    }
-                case "stopFireAtWill":
-                    {
-                        foreach (SlavePlayer slave in slaves)
+                    case "stopFireAtWill":
                         {
-                            action_n(slave, "stopFireAtWill");
+                            action_s(slave, "stopFireAtWill");
                             slave.isFiringAtWill = false;
+                            continue;
                         }
-                        return string.Format("demo: isFiringAtWill set to  {0}", false);
-                    }
-                case "startCharge":
-                    {
-                        foreach (SlavePlayer slave in slaves)
+                    case "melee":
                         {
-                            action_n(slave, "startCharge");
+                            action_s(slave, "meleeStrike");
+                            Debug.Log(string.Format("Demo: melee forward {0} rotation e {1}  yaw {2}", slave.roundPlayer.PlayerTransform.forward, slave.roundPlayer.PlayerTransform.rotation.eulerAngles, slave.roundPlayer.PlayerBase.Yaw));
+                            continue;
                         }
-                        return string.Format("demo: isCharge set to  {0}", true);
-                    }
-                case "stopCharge":
-                    {
-                        foreach (SlavePlayer slave in slaves)
-                        {
-                            action_n(slave, "stopCharge");
-                        }
-                        return string.Format("demo: isCharge set to  {0}", false);
-                    }
-                default:
-                    break;
-            }
-            //处理默认指令
-            foreach(SlavePlayer slave in slaves)
-            {
-                if (!carbonPlayers.ContainsKey(slave.playerId)) { problematicSpawns.Add(slave); continue; }
-                CarbonPlayerRepresentation carbonPlayerRepresentation = carbonPlayers[slave.playerId];
-                ServerRoundPlayer serverRoundPlayer = serverRoundPlayerManager.ResolveServerRoundPlayer(slave.playerId);
-                if(serverRoundPlayer == null)
-                {
-                    problematicSpawns.Add(slave);
-                    continue;
+                    default:
+                        break;
+
                 }
+
+                //Simple action
                 try
                 {
-                    if (!HomelessMethods.TryParseEnum<PlayerActions>(action, out targetAction)) { continue; } ;
-                    
+                    if (!HomelessMethods.TryParseEnum<PlayerActions>(action, out targetAction)) { continue; };
+
                     switch (targetAction)
                     {
                         case PlayerActions.StartAimingFirearm:
@@ -1640,26 +1541,28 @@ namespace DemoMod
                                 break;
                             }
                     }
-                    ref_UpdateCarbonPlayerInput.Invoke(serverCarbonPlayersManager, new object[] { carbonPlayerRepresentation, serverRoundPlayer, targetAction, MeleeStrikeType.None }) ;
-                   
-                }
-                catch(Exception ex)
-                {
-                    Debug.Log(string.Format("demo: Failed execute Command user: {0} action: {1} group: {2} Exception: {3}", ownerId, action, groupName, ex.ToString()));   
-                    return "failed Invalid action "+ ex.ToString();
-                }
-            }
+                    ref_UpdateCarbonPlayerInput.Invoke(serverCarbonPlayersManager, new object[] { carbonPlayerRepresentation, serverRoundPlayer, targetAction });
 
-            //cleanup problematic spawns
-            foreach(SlavePlayer problemSlave in problematicSpawns)
+                }
+                catch (Exception ex)
+                {
+                    Debug.Log(string.Format("demo: Failed execute Command user: {0} action: {1} group: {2} Exception: {3}", ownerId, action, groupName, ex.ToString()));
+                    return "failed Invalid action " + ex.ToString();
+                }
+
+            }
+            foreach (SlavePlayer problemSlave in problematicSpawns)
             {
                 cleanupSlave(problemSlave);
             }
 
+
             return string.Format("Bot {0} execute {1} requested by {2}", groupName, action, ownerId);
+
         }
-    
-        public static string action_n(SlavePlayer slave, string action, string additionalArgs = "", DemoAction demoAction = null)
+
+        //Complex controls enqueue
+        public static string action_s(SlavePlayer slave, string action, string additionalArgs = "", DemoAction demoAction = null)
         {
             int slaveId = slave.playerId;
             RoundPlayer slaveRoundPlayer;
@@ -1668,8 +1571,20 @@ namespace DemoMod
             bool hasDemoAction = demoAction == null ? false : true;
 
             //if (!carbonPlayers.ContainsKey(slave.playerId)) { cleanupSlave(slave); return "[Error] slave cleaned."; } //Watchout!!!!
-            carbonPlayerRepresentation = slave.carbonPlayerRepresentation == null ? carbonPlayers[slave.playerId] : slave.carbonPlayerRepresentation;
-            slaveRoundPlayer = slave.roundPlayer == null ? serverRoundPlayerManager.ResolveServerRoundPlayer(slave.playerId) : slave.roundPlayer;
+            try
+            {
+                carbonPlayerRepresentation = slave.carbonPlayerRepresentation == null ? slave.carbonPlayerRepresentation = carbonPlayers[slave.playerId] : slave.carbonPlayerRepresentation;
+                slaveRoundPlayer = slave.roundPlayer == null ? slave.roundPlayer = serverRoundPlayerManager.ResolveServerRoundPlayer(slave.playerId) : slave.roundPlayer;
+                if (carbonPlayerRepresentation == null || slaveRoundPlayer == null)
+                {
+                    throw new Exception("null reference carbonplayer / slaveroundplayer");
+                }
+            }catch(Exception )
+            {
+                cleanupSlave(slave);
+                return "[Error] slave cleaned.";
+            }
+
             //
             //Handle custom actions
             Queue < DemoAction> slaveActionQueue;
@@ -1797,15 +1712,15 @@ namespace DemoMod
                             targetPosition = randCollider.gameObject.transform.position;
                             slave.currentAimForward = targetPosition - position;
                             DemoTransform dt = new DemoTransform { position = targetPosition, forward = slave.currentAimForward, demoAction = demoAction , isCollistion = false, precision = 1.1f};
-                            walkTo(slaveId, dt);
+                            walkTo(slave, dt);
                             return string.Format("demo: randomChase ");
 
                         }
                         catch (Exception ex)
                         {
-                            Debug.Log("demo: excepiton in action_n:randomChase " + ex.ToString());
+                            Debug.Log("demo: excepiton in action_s:randomChase " + ex.ToString());
                             if (hasDemoAction) { demoAction.isComplete = true; }
-                            return "demo: excepiton in action_n:randomChase " + ex.ToString();
+                            return "demo: excepiton in action_s:randomChase " + ex.ToString();
                         }
                     }
                 case "startFireAtWill":
@@ -1887,24 +1802,20 @@ namespace DemoMod
                     }
                 case "meleeStrike": // 可以queue
                     {
-                        MeleeStrikeType mType = MeleeStrikeType.MeleeStrikeHigh;
-                        PlayerActions mAction = PlayerActions.ExecuteMeleeWeaponStrike;
-                        HomelessMethods.TryParseEnum<MeleeStrikeType>(additionalArgs, out mType);
+                        PlayerActions mAction = PlayerActions.MeleeStrikeHigh;
 
-                            ServerRoundPlayer serverRoundPlayer = serverRoundPlayerManager.ResolveServerRoundPlayer(slave.playerId);
-                            if (serverRoundPlayer == null) { return "demo: error meleeStrike"; }
-                            ref_UpdateCarbonPlayerInput.Invoke(serverCarbonPlayersManager, new object[] { carbonPlayerRepresentation, serverRoundPlayer, mAction, mType });
+                        ref_UpdateCarbonPlayerInput.Invoke(serverCarbonPlayersManager, new object[] { carbonPlayerRepresentation, slaveRoundPlayer, mAction});
                             //Broadcast melee strike
-                            Weapon activeWeaponDetails = serverRoundPlayer.CreatorWeaponHolder.ActiveWeaponDetails;
-                            PlayerMeleeStrikePacket playerMeleeStrikePacket = ComponentReferenceManager.genericObjectPools.playerMeleeStrikePacket.Obtain();
-                            playerMeleeStrikePacket.AttackingPlayerID = slave.playerId;
-                            playerMeleeStrikePacket.AttackTime = uLinkNetworkConnectionsCollection.networkTime + 0.03;
-                            playerMeleeStrikePacket.AttackingPlayerMeleeWeaponDamageDealerTypeID = activeWeaponDetails.GetDamageDealerTypeID(AttackType.MeleeAttack);
-                            playerMeleeStrikePacket.MeleeStrikeType = mType;
-                            EnhancedRC.networkView.RPC<PlayerMeleeStrikePacket>("MeleeAttackStrike", uLinkNetworkConnectionsCollection.connections, playerMeleeStrikePacket);
-                            ComponentReferenceManager.genericObjectPools.playerMeleeStrikePacket.Release(playerMeleeStrikePacket);
+                     //       Weapon activeWeaponDetails = serverRoundPlayer.CreatorWeaponHolder.ActiveWeaponDetails;
+                      //      PlayerMeleeStrikePacket playerMeleeStrikePacket = ComponentReferenceManager.genericObjectPools.playerMeleeStrikePacket.Obtain();
+                      //      playerMeleeStrikePacket.AttackingPlayerID = slave.playerId;
+                      //      playerMeleeStrikePacket.AttackTime = uLinkNetworkConnectionsCollection.networkTime + 0.03;
+                     //       playerMeleeStrikePacket.AttackingPlayerMeleeWeaponDamageDealerTypeID = activeWeaponDetails.GetDamageDealerTypeID(AttackType.MeleeAttack);
+                     //       playerMeleeStrikePacket.MeleeStrikeType = mType;
+                     //       EnhancedRC.networkView.RPC<PlayerMeleeStrikePacket>("MeleeAttackStrike", uLinkNetworkConnectionsCollection.connections, playerMeleeStrikePacket);
+                      //      ComponentReferenceManager.genericObjectPools.playerMeleeStrikePacket.Release(playerMeleeStrikePacket);
                         if (hasDemoAction) { serverCarbonPlayersManager.StartCoroutine(waitSetActionComplete(1f, demoAction)); }
-                        return string.Format("demo:meleeStrike {0}", mType);
+                        return string.Format("demo:meleeStrike {0}", mAction);
                     }
                 default:
                     break;
@@ -1960,7 +1871,7 @@ namespace DemoMod
                             break;
                         }
                 }
-                ref_UpdateCarbonPlayerInput.Invoke(serverCarbonPlayersManager, new object[] { carbonPlayerRepresentation, slaveRoundPlayer, targetAction, MeleeStrikeType.None });
+                ref_UpdateCarbonPlayerInput.Invoke(serverCarbonPlayersManager, new object[] { carbonPlayerRepresentation, slaveRoundPlayer, targetAction });
 
             }
             catch (Exception ex)
@@ -1977,15 +1888,17 @@ namespace DemoMod
             {
                 int slaveId = slave.playerId;
                 slavePlayerDictionary.Remove(slaveId);
-                slavePlayerTargetTransforms.Remove(slaveId);
-                slaveOwnerDictionary[slave.ownerId].Remove(slave);
-                slaveOwnerInfantryLine.Remove(slave.ownerId);
+
                 if (carbonPlayers != null && carbonPlayerIDs != null) //Should not be null 
                 {
                     carbonPlayerIDs.Remove(slaveId);
                     carbonPlayers.Remove(slaveId);
                 }
-            }catch( Exception ex)
+                if (slaveOwnerDictionary.ContainsKey(slave.ownerId)) slaveOwnerDictionary[slave.ownerId].Remove(slave);
+
+                if (slaveOwnerInfantryLine.ContainsKey(slave.ownerId)) slaveOwnerInfantryLine.Remove(slave.ownerId);
+            }
+            catch( Exception ex)
             {
                 Debug.Log("demo: exception in cleanupSlave " + ex.ToString());
             }
@@ -2000,20 +1913,11 @@ namespace DemoMod
             return string.Format("get user camera status pos: {0}  forward: {1}", ownerPosition, ownerForward);
         }
     
-        public static string walkTo( int slaveId, DemoTransform targetTransform)
+        public static string walkTo( SlavePlayer slave, DemoTransform targetTransform)
         {
-            ServerRoundPlayer slaveRoundPlayer;
-            if (!slavePlayerDictionary.ContainsKey(slaveId))
-            {
-                Debug.Log("demo: access slaveId that is not exist!");
-                return "no such slave Player";
-            }
-            if (!slavePlayerTargetTransforms.ContainsKey(slaveId))
-            {
-                slavePlayerTargetTransforms[slaveId] = new Queue<DemoTransform>();
-            }
-            stopSlaveMovement_clearTargetTransform(slaveId);
-            slaveRoundPlayer = serverRoundPlayerManager.ResolveServerRoundPlayer(slaveId);
+            RoundPlayer slaveRoundPlayer;
+            stopSlaveMovement_clearTargetTransform(slave);
+            slaveRoundPlayer = slave.roundPlayer == null ? slave.roundPlayer = serverRoundPlayerManager.ResolveServerRoundPlayer(slave.playerId): slave.roundPlayer;
             if(slaveRoundPlayer == default(RoundPlayer))
             {
                 Debug.Log("demo: error Resolve RoundPlayer!");
@@ -2023,17 +1927,17 @@ namespace DemoMod
             Vector3 forward = targetTransform.position - slaveRoundPlayer.PlayerTransform.position;
             forward.y = 0;
             forward.Normalize();
-            slavePlayerDictionary[slaveId].currentAimForward =  forward;
-            slavePlayerTargetTransforms[slaveId].Enqueue(targetTransform);
+            slave.currentAimForward =  forward;
+            slave.transformQueue.Enqueue(targetTransform);
             //Debug.Log("demo: get forward: " + forward.ToString());
             return forward.ToString();
         }
     
 
-        private static IEnumerator waitWalkTo(float seconds, int slaveId, DemoTransform targetTransform)
+        private static IEnumerator waitWalkTo(float seconds, SlavePlayer slave, DemoTransform targetTransform)
         {
             yield return new WaitForSeconds(seconds);
-            walkTo(slaveId, targetTransform);
+            walkTo(slave, targetTransform);
             yield break;
         }
         private static IEnumerator waitFormLine(float seconds, int ownerId)
@@ -2043,22 +1947,22 @@ namespace DemoMod
             yield break;
         }
 
-        private static IEnumerator waitAction(float seconds, int ownerId,  string _action, int slaveId = 0, string group = "none", DemoAction demoAction = null)
+        private static IEnumerator waitAction(float seconds, int ownerId,  string _action, int slaveId = 0, string group = "none", string additional="",DemoAction demoAction = null)
         {
             yield return new WaitForSeconds(seconds);
             if(slaveId != 0)
             {
-                action(ownerId, slaveId.ToString(), _action, demoAction: demoAction);
+                action_g(ownerId, slaveId.ToString(), _action, additionalArgs: additional);
             }
             else
             {
                 if (group != "none")
                 {
-                    action(ownerId, group, _action, demoAction: demoAction);
+                    action_g(ownerId, group, _action, additionalArgs: additional);
                 }
                 else
                 {
-                    action(ownerId, "all", _action, demoAction: demoAction);
+                    action_g(ownerId, "all", _action, additionalArgs: additional);
                 }
                 yield break;
             }
@@ -2073,18 +1977,18 @@ namespace DemoMod
             yield break;
         }
 
-        private static IEnumerator waitAction_n(float seconds,  string _action, SlavePlayer slave , DemoAction demoAction)
+        private static IEnumerator waitaction_s(float seconds,  string _action, SlavePlayer slave , DemoAction demoAction)
         { 
             yield return new WaitForSeconds(seconds);
             
             if(demoAction.additionalArgs != null)
             {
-                action_n(slave, _action, additionalArgs: demoAction.additionalArgs , demoAction: demoAction);
+                action_s(slave, _action, additionalArgs: demoAction.additionalArgs , demoAction: demoAction);
 
             }
             else
             {
-                action_n(slave, _action, demoAction: demoAction);
+                action_s(slave, _action, demoAction: demoAction);
             }
             yield break;
 
